@@ -30,18 +30,7 @@ class carrier_ode_loads_kpi_std:   # ode here is a pd.df with 4 features, o, d, 
         self.kpi=kpi
         self.std=std
 
-
-def Get_truckinsurance(carrierID):
-    cn = pyodbc.connect('DRIVER={SQL Server};SERVER=ANALYTICSPROD;DATABASE=Bazooka;trusted_connection=true')
-    query= """
-       select 
-        case when cargolimit= 0 then 500000 else cargolimit end 'cargolimit'
-		 from
-        bazooka.dbo.Carrier Car 
-        where Car.ID=?
-        """
-    truck=pd.read_sql(query,cn,params= [carrierID])
-    return truck.cargolimit.tolist()[0]
+ 
 
 def Get_truck(carrierID):
     cn = pyodbc.connect('DRIVER={SQL Server};SERVER=ANALYTICSPROD;DATABASE=Bazooka;trusted_connection=true')
@@ -210,25 +199,90 @@ def Get_Carrier_histLoad (CarrierID,date1,date2):
 	Begin
 	Drop Table #Carrier_HistLoad
 	End
-	Create Table #Carrier_HistLoad (LoadID int,   Origin varchar (50), Destination varchar(50),  OriginCluster varchar (50), DestinationCluster varchar (50), Corridor varchar (100))
+	Create Table #Carrier_HistLoad (LoadID int,  CustID int, Origin varchar (50), Destination varchar(50), Equip varchar (20), OriginCluster varchar (50), DestinationCluster varchar (50), Corridor varchar (100))
 	Insert into #Carrier_HistLoad
 
   
 	select L.id 'LoadID',  
-        L.OriginCityName + ', ' + L.OriginStateCode  'Origin'
+	LCUS.CustomerID  'CustID'
+	--,Miles
+	, L.OriginCityName + ', ' + L.OriginStateCode  'Origin'
 	,L.DestinationCityName + ', ' + L.DestinationStateCode  'Destination'
 	--,L.TotalValue
 	,case when  l.equipmenttype like '%V%' then 'V' when  l.equipmenttype like 'R' then 'R' else 'other' end Equipment
 	,RCO.ClusterNAME 'OriginCluster'
 	,RCD.ClusterName 'DestinationCluster'
 	,RCO.ClusterNAME+'-'+RCD.ClusterName  'Corridor'
-	FROM #Service S
-	inner join 	Bazooka.dbo.[Load] L on L.id=S.LoadID
+	FROM Bazooka.dbo.[Load] L
+	INNER JOIN Bazooka.dbo.LoadCarrier LCAR ON LCAR.LoadID = L.ID and LCAR.Main = 1 and LCAR.IsBounced = 0
+	--INNER JOIN Bazooka.dbo.Carrier CAR ON CAR.ID = LCAR.CarrierID
+	INNER JOIN Bazooka.dbo.LoadCustomer LCUS ON LCUS.LoadID = L.ID AND LCUS.Main = 1 
+	--INNER JOIN Bazooka.dbo.Customer CUS ON LCUS.CustomerID = CUS.ID
+	--LEFT JOIN Bazooka.dbo.Customer PCUS ON CUS.ParentCustomerID = PCUS.ID
+	INNER JOIN bazooka.dbo.LoadRate LR ON LR.LoadID = L.ID AND LR.EntityType = 13 AND LR.EntityID = LCAR.ID and LR.OriginalQuoteRateLineItemID=0
+	--inner join bazooka.dbo.loadstop LS on LS.id=L.OriginLoadStopID
 	LEFT JOIN Analytics.CTM.RateClusters RCO ON RCO.Location = L.OriginCityName + ', ' + L.OriginStateCode  
 	LEFT JOIN Analytics.CTM.RateClusters RCD ON RCD.Location = L.DestinationCityName + ', ' + L.DestinationStateCode  
+	WHERE L.StateType = 1
+	--and  L.LoadDate between @HistDate1 and @HistDate2  and L.Miles>0 
+	and  L.LoadDate between @CarrierDate1 and @CarrierDate2  and L.Miles>0 
+	AND L.Mode = 1 AND LCAR.CarrierID=@CarrierID
+	AND L.ShipmentType not in (3,4,6,7)
+	--AND (CASE WHEN L.EquipmentType LIKE '%V%' THEN 'V' ELSE L.EquipmentType END) IN ('V', 'R')
+	--AND CAR.ContractVersion NOT IN ('TMS FILE', 'UPSDS CTM', 'UPSCD CTM') --Exclude Managed Loads
+	--AND COALESCE(PCUS.CODE,CUS.CODE) NOT IN ('UPSAMZGA','UPSRAILPEA')
+	AND L.TotalRAte >= 150 AND L.TotalCost >= 150
+	AND  L.[OriginStateCode] in (select [Code]  FROM [Bazooka].[dbo].[State] where [ID]<=51) 
+	AND  L.[DestinationStateCode] in (select [Code]  FROM [Bazooka].[dbo].[State] where [ID]<=51) 
+	--and car.Name not like 'UPS%'
 	order by Origin,Destination
  
  
+
+	If(OBJECT_ID('tempdb..#CustSize') Is Not Null)
+	Begin
+	Drop Table #CustSize
+	End
+	Create Table #CustSize (CustID int, Count_ALL int)
+	Insert into #CustSize
+
+	select customerID,
+	count(loadid)
+	from bazooka.dbo.LoadCustomer LCU
+	inner join bazooka.dbo.load L on L.id=LCU.LoadID
+	where L.StateType = 1 and L.ProgressType >=7 and l.Mode = 1 and L.LoadDate between @CarrierDate1 and @CarrierDate2
+	and (l.equipmenttype like '%V%' or l.equipmenttype like 'R')
+	AND L.TotalRAte >= 150 AND L.TotalCost >= 150
+	AND  L.[OriginStateCode] in (select [Code]  FROM [Bazooka].[dbo].[State] where [ID]<=51) 
+	AND  L.[DestinationStateCode] in (select [Code]  FROM [Bazooka].[dbo].[State] where [ID]<=51) 
+	and customerID in(select distinct CustID  from #Carrier_CustID)
+	group by CustomerID
+
+	If(OBJECT_ID('tempdb..#Carrier_Cust') Is Not Null)
+	Begin
+	Drop Table #Carrier_Cust
+	End
+	Create Table #Carrier_Cust (CustID int, Count_Cus int, Count_ALL int)
+	Insert into #Carrier_Cust
+	select distinct #Carrier_HistLoad.CustID,
+	count(loadid) 'Count_Cus'
+	,#CustSize.Count_ALL 'Count_ALL'
+	from #Carrier_HistLoad
+	inner join #CustSize on #CustSize.CustID= #Carrier_HistLoad.CustID
+	group by #Carrier_HistLoad.CustID, #CustSize.Count_ALL
+	order by 2 desc
+
+	If(OBJECT_ID('tempdb..#Carrier_Corridor') Is Not Null)
+	Begin
+	Drop Table #Carrier_Corridor
+	End
+	Create Table #Carrier_Corridor (Corridor varchar (50), Count_Corridor int)
+	Insert into #Carrier_Corridor
+	select distinct corridor,
+	count(loadid) 'Count_Corridor'
+	from #Carrier_HistLoad
+	group by Corridor
+	order by 2 desc
 
 	If(OBJECT_ID('tempdb..#Carrier_Origin') Is Not Null)
 	Begin
@@ -294,16 +348,16 @@ def Get_Carrier_histLoad (CarrierID,date1,date2):
 	,RCD.ClusterName 'destinationCluster'
 	,RCO.ClusterNAME+'-'+RCD.ClusterName 'corridor'
 	, case when  l.equipmenttype like '%V%' then 'V' when  l.equipmenttype like 'R' then 'R' else 'other' end 'equipment'
-	--,COALESCE(Cor.Count_Corridor,0)  'corridor_count' 
+	,COALESCE(Cor.Count_Corridor,0)  'corridor_count' 
 	,COALESCE(Ori.Count_Origin,0)  'origin_count' 
 	,COALESCE(Dest.Count_Dest,0)  'dest_count' 
-	--,COALESCE(CC.Count_Cus,0)  'cus_Count'
-	--,COALESCE(CC.Count_ALL,0)   'cus_All'
-	--,case when COALESCE(CC.Count_ALL,0)<3000 then 'Small'
-	--when COALESCE(CC.Count_ALL,0)<10000 then 'Small-Med'
-	--when COALESCE(CC.Count_ALL,0)< 25000 then   'Med'
-	--when COALESCE(CC.Count_ALL,0)<50000 then  'Med-Large'
-	--else 'Large' end 'cus_Size'
+	,COALESCE(CC.Count_Cus,0)  'cus_Count'
+	,COALESCE(CC.Count_ALL,0)   'cus_All'
+	,case when COALESCE(CC.Count_ALL,0)<3000 then 'Small'
+	when COALESCE(CC.Count_ALL,0)<10000 then 'Small-Med'
+	when COALESCE(CC.Count_ALL,0)< 25000 then   'Med'
+	when COALESCE(CC.Count_ALL,0)<50000 then  'Med-Large'
+	else 'Large' end 'cus_Size'
 	,C.DandBIndustryId  'industryID', 
 	D.Code 'industry'
 	,	CityO.Latitude 'originLat',CityO.Longitude 'originLon',
@@ -328,10 +382,10 @@ def Get_Carrier_histLoad (CarrierID,date1,date2):
 	inner join bazooka.dbo.City CityD on CityD.id=LSD.CityID
 	LEFT JOIN Analytics.CTM.RateClusters RCO ON RCO.Location = L.OriginCityName + ', ' + L.OriginStateCode
 	LEFT JOIN Analytics.CTM.RateClusters RCD ON RCD.Location = L.DestinationCityName + ', ' + L.DestinationStateCode
-	--left join #Carrier_Corridor Cor on Cor.Corridor=RCO.ClusterNAME +'-'+RCD.ClusterName  
+	left join #Carrier_Corridor Cor on Cor.Corridor=RCO.ClusterNAME +'-'+RCD.ClusterName  
 	left join #Carrier_Origin Ori on Ori.OriginCluster=RCO.ClusterNAME  
 	left join #Carrier_Dest Dest on Dest.DestinationCluster=RCD.ClusterNAME 
-	--left join #Carrier_Cust CC on CC.CustID = LCUS.CustomerID  
+	left join #Carrier_Cust CC on CC.CustID = LCUS.CustomerID  
 	inner join bazooka.dbo.CustomerRelationshipManagement  C on C.CustomerID=LCUS.CustomerID
 	inner join
 	bazooka.dbo.DandBIndustry D  on C.DandBIndustryId=D.DandBIndustryId
@@ -439,9 +493,7 @@ def makeMatrix(x,y,z=[]):  #x is the hist load list, y is the unique ode list; x
 def get_odelist_hist(loadlist):
     odelist = []
     for x in loadlist.itertuples():
-        # odelist.append({'origin':x.originCluster,'destination':x.destinationCluster,'corridor':x.corridor,'equipment':x.equipment,'corridor_count':x.corridor_count,'corridor_max':x.corridor_max,'origin_count':x.origin_count,'origin_max':x.origin_count,'dest_count':x.dest_count,'dest_max':x.dest_max
-        #                 })
-        odelist.append({'origin':x.originCluster,'destination':x.destinationCluster,'corridor':x.corridor,'equipment':x.equipment,'origin_count':x.origin_count,'origin_max':x.origin_count,'dest_count':x.dest_count,'dest_max':x.dest_max
+        odelist.append({'origin':x.originCluster,'destination':x.destinationCluster,'corridor':x.corridor,'equipment':x.equipment,'corridor_count':x.corridor_count,'corridor_max':x.corridor_max,'origin_count':x.origin_count,'origin_max':x.origin_count,'dest_count':x.dest_count,'dest_max':x.dest_max
                         })
     odelist_df=pd.DataFrame(odelist)
     return odelist_df
@@ -508,8 +560,8 @@ def similarity(loadlist, newload, weight):
                                            (load.originLat, load.originLon)).miles
         destination_dist = geopy.distance.vincenty((newload.destinationLat, newload.destinationLon),
                                                    (load.destinationLat, load.destinationLon)).miles
-        histload_feature = [ori_dist, destination_dist, load.industryID,load.miles/10]
-        newload_feature = [0.01, 0.01, newload.industryID, newload.miles/10]
+        histload_feature = [ori_dist, destination_dist, load.industryID]
+        newload_feature = [0.01, 0.01, newload.industryID]
         sim = 1 - spatial.distance.cosine(histload_feature, newload_feature)
  
         # other feature could be 'pu_GAP','DH' --- need to verify later
@@ -536,9 +588,9 @@ def hist_scoring(carrier_scores_df, carrierID, loadID):
     select_k = max(math.ceil(len(carrier_scores_df) * k), min(10, len(carrier_scores_df)))
     
     carrier_scores_select = carrier_scores_df.sort_values(by=['similarity', 'kpi'], ascending=False)[0:select_k]
-    #if len(carrier_scores_select) == 0:
+    if len(carrier_scores_select) == 0:
         #print(carrier_info.carrierID, carrier_info.loadID)
-        #print(carrierID, loadID)
+        print(carrierID, loadID)
     sim_score = sum(carrier_scores_select.kpi * carrier_scores_select.similarity * carrier_scores_select.weight) / len(carrier_scores_select)  # top n loads
     sim_margin = sum(carrier_scores_select.margin_perc) / len(carrier_scores_select)
     sim_rpm = sum(carrier_scores_select.rpm) / len(carrier_scores_select)
@@ -649,12 +701,12 @@ def pu_Gap(pu_appt,EmptyDate,traveltime):
     time_gap=pu_appt-EmptyDate
     return time_gap.days * 24-traveltime + time_gap.seconds / 3600
 
-def dynamic_input(newloads_df,carrier):
+def dynamic_input(newloads_df,carrier,originDH,destDH,gap):
     ##This part is for new api input
-    # newloads_df['originDH'] = originDH
-    # newloads_df['destDH'] = destDH
-    # newloads_df['puGap'] = gap
-    # newloads_df['totalDH'] = originDH+destDH
+    newloads_df['originDH'] = originDH
+    newloads_df['destDH'] = destDH
+    newloads_df['puGap'] = gap
+    newloads_df['totalDH'] = originDH+destDH
     if  carrier.originLat is not None and carrier.originLon is not None:
          newloads_ODH= {'originDH': newloads_df.apply(lambda row: geopy.distance.vincenty((row.originLat, row.originLon), (
              float(carrier.originLat), float(carrier.originLon))).miles, axis=1)}
@@ -688,7 +740,7 @@ def reasoning(results_df):
     return reasons
 
 def api_json_output(results_df,carrierID):
-    results_df['Score'] = results_df['Score'].apply(np.int)
+    results_df['Score'] = results_df['Score'].apply(np.int64)
     api_resultes_df = results_df[['loadID', 'Reason', 'Score']]
     loads=[]
     #print (results_json)
@@ -704,7 +756,15 @@ def api_json_output(results_df,carrierID):
         load=api_resultes_df.loc[i]
         #api_resultes_df.loc[i].to_json("row{}.json".format(i))
         load_json=load.to_json()
-        loads.append(load_json)
+        _loadid = load["loadID"].item()
+        _reason = load["Reason"]
+        _score = load["Score"].item()
+        #loads.append(load_json)
+        loads.append({
+            "loadid": _loadid, 
+            "Reason": _reason,
+            "Score": _score
+        })
     return loads
 
 def recommender( carrier_load,trucks_df):
@@ -732,6 +792,12 @@ def recommender( carrier_load,trucks_df):
         # else:
         #     Get_newload()
 
+        # initialize 3 column features. if carrier put any info related to DH or puGap,we can update
+        newloadsall_df['originDH'] = 0
+        newloadsall_df['destDH'] = 0
+        newloadsall_df['puGap'] = 0
+        newloadsall_df['totalDH'] = 0
+
         newloads_df = newloadsall_df[(newloadsall_df.value <= float(carrier.cargolimit))
                                      & [carrier.EquipmentType in equip for equip in newloadsall_df.equipment]
                                      & (newloadsall_df.equipmentlength <= float(carrier.EquipmentLength))]
@@ -740,19 +806,13 @@ def recommender( carrier_load,trucks_df):
         originRadius = originDH_default if carrier.originDeadHead_radius == 0 else float(carrier.originDeadHead_radius)
         destRadius = destDH_default if carrier.destinationDeadHead_radius == 0 else float(carrier.destinationDeadHead_radius)
 
-        # initialize 3 column features. if carrier put any info related to DH or puGap,we can update
-        newloads_df['originDH'] = originRadius
-        newloads_df['destDH'] = destRadius
-        newloads_df['puGap'] = gap_default
-        newloads_df['totalDH'] = originRadius+destRadius
-
         # need dynamic check: if equipment type is an entry, etc.
         if len(newloads_df) > 0:
-            newloads_df = dynamic_input(newloads_df, carrier)
+            newloads_df = dynamic_input(newloads_df, carrier,originRadius,destRadius,gap_default)
 
             # need to change, if not null for origin, update origin; if not null for dest, update dest,
             # if not null for date, select date from to.
-            #print(carrier.carrierID)
+            print(carrier.carrierID)
 
             newloads_select = newloads_df[
                 (newloads_df.originDH <= originRadius) | (newloads_df.totalDH <= (originRadius+destRadius)) & (newloads_df.puGap <= gap_default)]
@@ -779,7 +839,7 @@ def recommender( carrier_load,trucks_df):
                 results_sort_df = results_df[results_df.Score > 0].sort_values(by=['Score'], ascending= False)
                  
                 result_json=api_json_output(results_sort_df,carrier.carrierID)
-                #print ('test')
+                print ('test')
     return result_json
 
 
@@ -799,7 +859,7 @@ def search():
                  }
     truck_input = request.args.to_dict()
     truck.update(truck_input)
-    truck['cargolimit'] = Get_truckinsurance(truck['carrierID'])
+ 
     carrier_load = Get_Carrier_histLoad(truck['carrierID'],(datetime.timedelta(-366-7) + now).strftime("%Y-%m-%d"),
                                         (datetime.timedelta(-7) + now).strftime("%Y-%m-%d"))
 
