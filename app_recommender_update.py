@@ -144,6 +144,8 @@ def Get_Carrier_histLoad (CarrierID,date1,date2):
 	WHERE L.Mode = 1 AND    L.LoadDate between @CarrierDate1 and @CarrierDate2 and L.Miles>0 and LCAR.CarrierID= @CarrierID  
 	) X
 
+ 
+
 	If(OBJECT_ID('tempdb..#Bounce') Is Not Null)
 	Begin
 	Drop Table #Bounce
@@ -218,7 +220,6 @@ def Get_Carrier_histLoad (CarrierID,date1,date2):
         L.OriginCityName + ', ' + L.OriginStateCode  'Origin'
 	,L.DestinationCityName + ', ' + L.DestinationStateCode  'Destination'
 	--,L.TotalValue
-	,case when  l.equipmenttype like '%V%' then 'V' when  l.equipmenttype like 'R' then 'R' else 'other' end Equipment
 	,RCO.ClusterNAME 'OriginCluster'
 	,RCD.ClusterName 'DestinationCluster'
 	,RCO.ClusterNAME+'-'+RCD.ClusterName  'Corridor'
@@ -238,7 +239,7 @@ def Get_Carrier_histLoad (CarrierID,date1,date2):
 	Insert into #Carrier_Origin
 	select distinct OriginCluster,
 	count(loadid) 'Count_Origin'
-	from #Carrier_HistLoad
+	from #Carrier_HistLoad 
 	group by OriginCluster
 	order by 2 desc
 
@@ -255,8 +256,6 @@ def Get_Carrier_histLoad (CarrierID,date1,date2):
 	group by DestinationCluster
 	order by 2 desc
 	---End of Carrier Features
-  
-
 
 	select * from (
 	select  COALESCE(B.LoadID,O.LoadID)   'loadID',
@@ -340,12 +339,12 @@ def Get_Carrier_histLoad (CarrierID,date1,date2):
 	where pu_Gap>=0 and margin_perc between -65 and 65
 	----65 and 65 are 1% to 99% of the margin_perc
 	 order by corridor
-	 """
+	"""
 
     histload=pd.read_sql(query,cn,params= [CarrierID,date1,date2])
     if (len(histload)==0):
         return {'flag':0,'histload':0}
-    histload['corridor_max']=max(histload.corridor_count)
+    #histload['corridor_max']=max(histload.corridor_count)
     histload['origin_max']=max(histload.origin_count)
     histload['dest_max']=max(histload.dest_count)
     return {'flag':1,'histload':histload}
@@ -781,6 +780,7 @@ def recommender( carrier_load,trucks_df):
                 result_json=api_json_output(results_sort_df,carrier.carrierID)
                 #print ('test')
     return result_json
+
 
 
 @app.route('/search/',methods=['GET'])
