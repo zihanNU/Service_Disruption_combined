@@ -218,7 +218,7 @@ def Get_Carrier_histLoad (CarrierID,date1,date2):
         L.OriginCityName + ', ' + L.OriginStateCode  'Origin'
 	,L.DestinationCityName + ', ' + L.DestinationStateCode  'Destination'
 	--,L.TotalValue
-	,case when  l.equipmenttype like '%V%' then 'V' when  l.equipmenttype like 'R' then 'R' else 'other' end Equipment
+	--,case when  l.equipmenttype like '%V%' then 'V' when  l.equipmenttype like 'R' then 'R' else 'other' end Equipment
 	,RCO.ClusterNAME 'OriginCluster'
 	,RCD.ClusterName 'DestinationCluster'
 	,RCO.ClusterNAME+'-'+RCD.ClusterName  'Corridor'
@@ -345,7 +345,7 @@ def Get_Carrier_histLoad (CarrierID,date1,date2):
     histload=pd.read_sql(query,cn,params= [CarrierID,date1,date2])
     if (len(histload)==0):
         return {'flag':0,'histload':0}
-    histload['corridor_max']=max(histload.corridor_count)
+    #histload['corridor_max']=max(histload.corridor_count)
     histload['origin_max']=max(histload.origin_count)
     histload['dest_max']=max(histload.dest_count)
     return {'flag':1,'histload':histload}
@@ -607,6 +607,7 @@ def indiv_recommender(carrier,newloads,loadList):
     carrier_load_score = []
 
     for i in range(0, len(newloads)):
+        print('processing {} of {}'.format(i, len(newloads)))
         newload=newloads.iloc[i]
         new_ode=newload_ode.iloc[i]
         time_carrier = pd.Timestamp(carrier.EmptyDate)
@@ -702,9 +703,15 @@ def api_json_output(results_df,carrierID):
 ##                 'margin_Score', 'hist_perf', 'Score', 'Reason'])
     for i in api_resultes_df.index:
         load=api_resultes_df.loc[i]
-        #api_resultes_df.loc[i].to_json("row{}.json".format(i))
-        load_json=load.to_json()
-        loads.append(load_json)
+        
+        _loadid = load["loadID"].item()
+        _reason = load["Reason"]
+        _score = load["Score"].item()
+        loads.append({
+            "loadid": _loadid, 
+            "Reason": _reason,
+            "Score": _score
+        })
     return loads
 
 def recommender( carrier_load,trucks_df):
