@@ -38,6 +38,9 @@ logging.basicConfig(filename=LOGFILENAME, format='%(asctime)s  %(name)s:%(leveln
 LOGGER = logging.getLogger('app_recommender_api_log')
 LOGGER.info("*** Flask restart t={} name={}".format(datetime.datetime.now(), __name__))
 
+#setup data location
+if not os.path.exists(CONFIG.carrierDataPath):
+    os.makedirs(CONFIG.carrierDataPath)
 
 class originDestinationEquipment:
     def  __init__(self,origin,destination,equipment):
@@ -55,7 +58,7 @@ class carrier_ode_loads_kpi_std:   # ode here is a pd.df with 4 features, o, d, 
 
 
 def Get_truckinsurance(carrierID):
-    cn = pyodbc.connect('DRIVER={SQL Server};SERVER=ANALYTICSPROD;DATABASE=Bazooka;trusted_connection=true')
+    cn = pyodbc.connect(CONFIG.bazookaAnalyticsConnString)
     query= """
         select 
         case when cargolimit= 0 then 500000 else cargolimit end 'cargolimit'
@@ -67,7 +70,7 @@ def Get_truckinsurance(carrierID):
     return truck.cargolimit.tolist()[0]
 
 def Get_truck(carrierID):
-    cn = pyodbc.connect('DRIVER={SQL Server};SERVER=ANALYTICSPROD;DATABASE=Bazooka;trusted_connection=true')
+    cn = pyodbc.connect(CONFIG.bazookaAnalyticsConnString)
     query= """
     select 
     carrierID,car.name,EmptyDate,EquipmentType,EquipmentLength,
@@ -89,8 +92,8 @@ def Get_truck(carrierID):
     
 #Give CarrierID
 def Get_Carrier_histLoad (CarrierID,date1,date2):
-    cn = pyodbc.connect('DRIVER={SQL Server};SERVER=ANALYTICSPROD;DATABASE=Bazooka;trusted_connection=true')
-    
+    cn = pyodbc.connect(CONFIG.bazookaAnalyticsConnString)
+        
     query= """
     set nocount on
     declare @CarrierID as int =?
@@ -374,7 +377,7 @@ def Get_Carrier_histLoad (CarrierID,date1,date2):
     return {'flag':1,'histload':histload}
 
 def Get_newload(date1,date2):
-    cn = pyodbc.connect('DRIVER={SQL Server};SERVER=reportingdatabases;DATABASE=Bazooka;trusted_connection=true')     
+    cn = pyodbc.connect(CONFIG.bazookaReplConnString)
     query="""
     declare @date1 as date = ?
     declare @date2 as date = ?
@@ -576,7 +579,8 @@ def hist_scoring(carrier_scores_df, carrierID, loadID):
 def check(carrier_load,newloads,carrier,corridor_info):
     if carrier_load['flag']==1:
         loadList=carrier_load['histload']
-        loadList.to_csv('carrier' + str(carrier.carrierID) + 'histload.csv',index=False)
+        filepath = '{}carrier{}histload.csv'.format(CONFIG.carrierDataPath, carrier.carrierID)
+        loadList.to_csv(filepath,index=False)
         # loadList=  Carrier_Load_loading(1000)
         carrier_load_score=indiv_recommender(carrier, newloads, loadList)
     else:
@@ -585,8 +589,8 @@ def check(carrier_load,newloads,carrier,corridor_info):
     return (carrier_load_score)            
 
 def general_recommender(carrier,newloads,corridor_info):
-##for new carriers, which has no hist data
-# margin and rpm and margin perc, needs to use all data from this corridor, no need to grab only from this carrier if this is a new carrier
+    ##for new carriers, which has no hist data
+    # margin and rpm and margin perc, needs to use all data from this corridor, no need to grab only from this carrier if this is a new carrier
     carrier_load_score=[]
     carrierID = int(carrier.carrierID)
     for i in range(0, len(newloads)):
@@ -630,12 +634,8 @@ def indiv_recommender(carrier,newloads,loadList):
     carrier_load_score = []
 
     for i in range(0, len(newloads)):
-        print('processing {} of {}'.format(i, len(newloads)))
         newload=newloads.iloc[i]
         new_ode=newload_ode.iloc[i]
-        time_carrier = pd.Timestamp(carrier.EmptyDate)
-        time_load = pd.Timestamp(newload.pu_appt)
-        time_gap = time_load - time_carrier
 
         matchlist,   weight, corridor_vol = find_ode(kpiMatrix,new_ode,kpi_odlist )
         ## updated, match list will be a list of all matched loads. i.e. one new load can only have one matched list

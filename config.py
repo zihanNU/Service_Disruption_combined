@@ -20,6 +20,7 @@ class Config(object):
         self.__connectionString = ROOT_ELEMENT.find('connectionStrings').text
 
         self.setPaths()
+        self.setConnectionStrings()
 
 
     def initializeProperties(self):
@@ -27,6 +28,10 @@ class Config(object):
         self.__connectionString = None
         self.__modelPath = None
         self.__logPath = None
+        self.__carrierDataPath = None
+        self.__dataScienceConnString = None
+        self.__bazookaReplConnString = None
+        self.__bazookaAnalyticsConnString = None
 
     @property
     def rootElement(self):
@@ -56,6 +61,22 @@ class Config(object):
     # def logPath(self, value):
     #     self._logPath = value
 
+    @property
+    def carrierDataPath(self):
+        return self.__carrierDataPath
+
+    @property
+    def dataScienceConnString(self):
+        return self.__dataScienceConnString
+
+    @property
+    def bazookaReplConnString(self):
+        return self.__bazookaReplConnString
+
+    @property
+    def bazookaAnalyticsConnString(self):
+        return self.__bazookaAnalyticsConnString        
+
 
     def setPaths(self):
         _paths_node = self.rootElement.find('paths')
@@ -66,16 +87,22 @@ class Config(object):
         _log_path = _paths_node.find('logPath').text
         self.__logPath = '' if _log_path is None else _log_path
 
-        #print("PATHS!!!!")
-        #print("_paths:{}".format(_paths))
-        #print("_model_path:{}".format(_model_path))
-        #print("_log_path:{}".format(_log_path))
+        _carrierDataPath = _paths_node.find('carrierDataPath').text
+        self.__carrierDataPath = '' if _carrierDataPath is None else _carrierDataPath
 
-
+    def setConnectionStrings(self):
+        _connStringsNode = self.rootElement.find('connectionStrings')
+        
+        _dataScienceConnString = _connStringsNode.find('dataScience').text
+        _bazookaReplConnString = _connStringsNode.find('bazookaRepl').text
+        _bazookaAnalyticsConnString = _connStringsNode.find('bazookaAnalytics').text
+        
+        self.__dataScienceConnString = '' if _dataScienceConnString is None else _dataScienceConnString
+        self.__bazookaReplConnString = '' if _bazookaReplConnString is None else _bazookaReplConnString
+        self.__bazookaAnalyticsConnString = '' if _bazookaAnalyticsConnString is None else _bazookaAnalyticsConnString
+    
 try:
     CONFIG = Config(ROOT_ELEMENT)
-    #print(CONFIG.rootElement)
-    #print(CONFIG.connectionString)
 except Exception as ex:
     print('Handled Error in Config():{}'.format(str(ex)))
     raise ex
