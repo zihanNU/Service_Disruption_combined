@@ -66,7 +66,7 @@ Invoke-Command -ScriptBlock {
 
 Write-Host "Predeploy.ps1 -> Conda Install scipi"
 Invoke-Command -ScriptBlock {
-    Start-Process "C:\Miniconda\Scripts\conda.exe" -ArgumentList "install", "-y", "-c", "anaconda", "scipi" -Wait
+    Start-Process "C:\Miniconda\Scripts\conda.exe" -ArgumentList "install", "-y", "-c", "anaconda", "scipy" -Wait
 }
 
 Write-Host "Predeploy.ps1 -> Conda Install geopy"
