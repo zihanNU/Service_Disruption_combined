@@ -29,7 +29,7 @@ Write-Host "Predeploy.ps1 -> Miniconda check complete"
 #IIS Enable CGI
 ###########################################################################################################################
 Write-Host "Predeploy.ps1 -> Enabling CGI in IIS"
-Invoke-Command -Session $session -ScriptBlock {
+Invoke-Command -ScriptBlock {
     Enable-WindowsOptionalFeature -Online -FeatureName IIS-CGI
 }
 Write-Host "Predeploy.ps1 -> Enable CGI in IIS - Complete"
