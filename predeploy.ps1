@@ -35,7 +35,49 @@ Invoke-Command -ScriptBlock {
 Write-Host "Predeploy.ps1 -> Enable CGI in IIS - Complete"
 
 
+###########################################################################################################################
+#Conda Installs
+###########################################################################################################################
 
+Write-Host "Predeploy.ps1 -> Conda Install wfastcgi"
+Invoke-Command -ScriptBlock {
+    Start-Process "C:\Miniconda\Scripts\conda.exe" -ArgumentList "install", "-y", "-c", "clinicalgraphics/label/archived", "wfastcgi" -Wait
+}
+
+Write-Host "Predeploy.ps1 -> wfastcgi-enable"
+Invoke-Command -ScriptBlock {
+    Invoke-Expression "c:\miniconda\scripts\wfastcgi-enable.exe"
+}
+
+Write-Host "Predeploy.ps1 -> Conda Install flask"
+Invoke-Command -ScriptBlock {
+    Start-Process "C:\Miniconda\Scripts\conda.exe" -ArgumentList "install", "-y", "flask" -Wait
+}
+
+Write-Host "Predeploy.ps1 -> Conda Install pyodbc"
+Invoke-Command -ScriptBlock {
+    Start-Process "C:\Miniconda\Scripts\conda.exe" -ArgumentList "install", "-y", "pyodbc" -Wait
+}
+
+Write-Host "Predeploy.ps1 -> Conda Install pandas"
+Invoke-Command -ScriptBlock {
+    Start-Process "C:\Miniconda\Scripts\conda.exe" -ArgumentList "install", "-y", "pandas" -Wait
+}
+
+Write-Host "Predeploy.ps1 -> Conda Install scipi"
+Invoke-Command -ScriptBlock {
+    Start-Process "C:\Miniconda\Scripts\conda.exe" -ArgumentList "install", "-y", "-c", "anaconda", "scipi" -Wait
+}
+
+Write-Host "Predeploy.ps1 -> Conda Install geopy"
+Invoke-Command -ScriptBlock {
+    Start-Process "C:\Miniconda\Scripts\conda.exe" -ArgumentList "install", "-y", "-c", "conda-forge", "geopy" -Wait
+}
+
+Write-Host "Predeploy.ps1 -> Conda Install pytictoc"
+Invoke-Command -ScriptBlock {
+    Start-Process "C:\Miniconda\Scripts\conda.exe" -ArgumentList "install", "-y", "-c", "ecf", "pytictoc" -Wait
+}
 
 
 
