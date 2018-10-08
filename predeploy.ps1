@@ -1,10 +1,13 @@
 ###########################################################################################################################
-#Copy and install Miniconda
+#Download and install Miniconda
 ###########################################################################################################################
-#$file = "\\gxstorage\GXData\All Departmental Data\Information Technology\Jamie\Miniconda3-latest-Windows-x86_64.exe"
-$file = "\\gxstorage\GXData\Test Files\Miniconda3-latest-Windows-x86_64.exe"
 
-Copy-Item -Path $file -Destination 'c:\temp\Miniconda3-latest-Windows-x86_64.exe'
+$url = "https://repo.continuum.io/miniconda/Miniconda3-latest-Windows-x86_64.exe"
+$output = "c:\temp\Miniconda3-latest-Windows-x86_64.exe"
+$start_time = Get-Date
+
+$wc = New-Object System.Net.WebClient
+$wc.DownloadFile($url, $output)
 
 Invoke-Command -ScriptBlock {
     Start-Process "c:\temp\Miniconda3-latest-Windows-x86_64.exe" -ArgumentList "/S", "/InstallationType=AllUsers", "/RegisterPython=1", "/D=C:\Miniconda" -Wait
