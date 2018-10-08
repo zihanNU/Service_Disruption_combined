@@ -46,8 +46,9 @@ Invoke-Command -ScriptBlock {
 
 Write-Host "Predeploy.ps1 -> wfastcgi-enable"
 Invoke-Command -ScriptBlock {
-    Invoke-Expression "c:\miniconda\scripts\wfastcgi-enable.exe"
+    Invoke-Expression "c:\miniconda\scripts\wfastcgi-enable.exe" -ErrorAction SilentlyContinue
 }
+
 
 Write-Host "Predeploy.ps1 -> Conda Install flask"
 Invoke-Command -ScriptBlock {
@@ -64,7 +65,7 @@ Invoke-Command -ScriptBlock {
     Start-Process "C:\Miniconda\Scripts\conda.exe" -ArgumentList "install", "-y", "pandas" -Wait
 }
 
-Write-Host "Predeploy.ps1 -> Conda Install scipi"
+Write-Host "Predeploy.ps1 -> Conda Install scipy"
 Invoke-Command -ScriptBlock {
     Start-Process "C:\Miniconda\Scripts\conda.exe" -ArgumentList "install", "-y", "-c", "anaconda", "scipy" -Wait
 }
