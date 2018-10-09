@@ -45,10 +45,14 @@ Invoke-Command -ScriptBlock {
 }
 
 Write-Host "Predeploy.ps1 -> wfastcgi-enable"
-Invoke-Command -ScriptBlock {
-    Invoke-Expression "c:\miniconda\scripts\wfastcgi-enable.exe" -ErrorAction SilentlyContinue
+[xml]$configDoc  = Get-Content -Path "C:\Windows\System32\inetsrv\config\applicationHost.config"
+$fastCgiValue = $configDoc["configuration"].'system.webServer'.fastCgi
+if($fastCgiValue.InnerXml.Length -lt 1)
+{
+    Invoke-Command -ScriptBlock {
+        Invoke-Expression "c:\miniconda\scripts\wfastcgi-enable.exe" -ErrorAction SilentlyContinue
+    }
 }
-
 
 Write-Host "Predeploy.ps1 -> Conda Install flask"
 Invoke-Command -ScriptBlock {
