@@ -12,7 +12,6 @@ else
 
     $url = "https://repo.continuum.io/miniconda/Miniconda3-latest-Windows-x86_64.exe"
     $output = "c:\temp\Miniconda3-latest-Windows-x86_64.exe"
-    $start_time = Get-Date
 
     $wc = New-Object System.Net.WebClient
     $wc.DownloadFile($url, $output)
@@ -85,5 +84,5 @@ Invoke-Command -ScriptBlock {
 }
 
 
-
-
+#Save this link till the end of time!
+#https://pypi.org/project/wfastcgi/
