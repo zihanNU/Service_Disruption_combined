@@ -501,7 +501,7 @@ def search():
         carriers.append(truck)
         carrier_df = pd.DataFrame(carriers)
         results=recommender(carrier_load, carrier_df)
-        return jsonify({'Loads':results, "ver": CONFIG.carrierDataPath} )
+        return jsonify({'Loads':results, "ver": CONFIG.versionNumber} )
 		#test = Get_truck(1234)
 
     except Exception as ex:
