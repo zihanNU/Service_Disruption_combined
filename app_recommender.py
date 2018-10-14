@@ -409,7 +409,7 @@ def recommender( carrier_load,trucks_df):
 
     ##initialization of the final results
     #results_sort_df = pd.DataFrame(columns=['loadID', 'Reason', 'Score'])
-    result_json = {'Loads': [], "ver": "TruckNorris.0.1.18208.04"}
+    result_json = {'Loads': [], "ver": CONFIG.versionNumber}
     carrier = trucks_df.iloc[0]
     newloadsall_df = Get_newload(date1_default,date2_default)
     ### should deal with if equipmenttype is a string carrier['EquipmentType'].fillna('', inplace=True)
@@ -501,7 +501,7 @@ def search():
         carriers.append(truck)
         carrier_df = pd.DataFrame(carriers)
         results=recommender(carrier_load, carrier_df)
-        return jsonify({'Loads':results, "ver": "TruckNorris.0.1.18208.04"} )
+        return jsonify({'Loads':results, "ver": CONFIG.carrierDataPath} )
 		#test = Get_truck(1234)
 
     except Exception as ex:

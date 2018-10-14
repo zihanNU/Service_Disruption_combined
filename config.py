@@ -17,7 +17,8 @@ class Config(object):
     def __init__(self, rootElement):
         self.initializeProperties()
         self.__rootElement = rootElement
-        self.__connectionString = ROOT_ELEMENT.find('connectionStrings').text
+
+        self.__versionNumber = rootElement.find('version').text
 
         self.setPaths()
         self.setConnectionStrings()
@@ -25,13 +26,13 @@ class Config(object):
 
     def initializeProperties(self):
         self.__rootElement = None
-        self.__connectionString = None
         self.__modelPath = None
         self.__logPath = None
         self.__carrierDataPath = None
         self.__dataScienceConnString = None
         self.__bazookaReplConnString = None
         self.__bazookaAnalyticsConnString = None
+        self.__versionNumber = None
 
     @property
     def rootElement(self):
@@ -41,25 +42,16 @@ class Config(object):
     #     self._rootElement = value
 
     @property
-    def connectionString(self):
-        return self.__connectionString
-    # @connectionString.setter
-    # def connectionString(self, value):
-    #     self._connectionString = value
+    def versionNumber(self):
+        return self.__versionNumber
 
     @property
     def modelPath(self):
         return self.__modelPath
-    # @modelPath.setter
-    # def modelPath(self, value):
-    #     self._modelPath = value
 
     @property 
     def logPath(self):
         return self.__logPath
-    # @logPath.setter
-    # def logPath(self, value):
-    #     self._logPath = value
 
     @property
     def carrierDataPath(self):
