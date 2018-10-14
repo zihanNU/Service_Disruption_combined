@@ -3,7 +3,7 @@ import xml.etree.ElementTree
 
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 CONFIG_FILE = os.path.join(DIR_PATH, 'app_recommender.config')
-VERSION_FILE = open('MatchingResearch.Api.version', 'r')
+VERSION_FILE = open('MatchingResearch.Api.version', 'r', encoding='UTF-16')
 
 try:
     ROOT_ELEMENT = xml.etree.ElementTree.parse(CONFIG_FILE).getroot()
@@ -95,7 +95,7 @@ class Config(object):
         self.__bazookaAnalyticsConnString = '' if _bazookaAnalyticsConnString is None else _bazookaAnalyticsConnString
     
 try:
-    CONFIG = Config(ROOT_ELEMENT, VERSION_FILE.read())
+    CONFIG = Config(ROOT_ELEMENT, VERSION_FILE.read().strip())
 except Exception as ex:
     print('Handled Error in Config():{}'.format(str(ex)))
     raise ex
