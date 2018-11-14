@@ -56,7 +56,6 @@ class carrier_ode_loads_kpi_std:   # ode here is a pd.df with 4 features, o, d, 
         self.kpi=kpi
         self.std=std
 
-
 def Get_truckinsurance(carrierID):
     cn = pyodbc.connect(CONFIG.bazookaAnalyticsConnString)
     cursor = cn.cursor()
@@ -88,6 +87,18 @@ def Get_truck(carrierID):
 def Get_Carrier_histLoad (CarrierID,date1,date2):
     cn = pyodbc.connect(CONFIG.bazookaAnalyticsConnString)
     sql = "{call dbo.spCarrier_GetHistLoadsForResearchMatching(?,?,?)}"
+    ##### The new query, database changed to AnalyticsDev, may need a new string as AnalyticsDevConnString
+    cn = pyodbc.connect('DRIVER={SQL Server};SERVER=ANALYTICSDev;DATABASE=ResearchScience;trusted_connection=true')
+    sql = """
+            set nocount on
+            declare @CarrierID as int =?   
+            declare @date1 as date = ?
+            declare @date2 as date =?
+            select * from [ResearchScience].[dbo].[Recommendation_HistLoads]
+            where CarrierID= @CarrierID  
+            and loaddate between @date1 and @date2
+    	"""
+    ###
     histload = pd.read_sql(sql = sql, con = cn, params=(CarrierID,date1,date2,))
     if (len(histload)==0):
         return {'flag':0,'histload':0}
@@ -96,13 +107,85 @@ def Get_Carrier_histLoad (CarrierID,date1,date2):
     histload['dest_max']=max(histload.dest_count)
     return {'flag':1,'histload':histload}
 
+def Get_corridorinfo():
+    #database changed to AnalyticsDev, may need a new string as AnalyticsDevConnString
+    cn = pyodbc.connect('DRIVER={SQL Server};SERVER=ANALYTICSDev;DATABASE=ResearchScience;trusted_connection=true')
+    sql="""select * from [ResearchScience].[dbo].[Recommendation_CorridorMargin]"""
+    corridor_info=pd.read_sql(sql = sql, con = cn)
+    return corridor_info
+
 def Get_newload(date1,date2):
     cn = pyodbc.connect(CONFIG.bazookaReplConnString)
     sql = "{call dbo.spLoad_GetNonUPSActiveLoadsForResearchMatching(?,?)}"
+    ### The new query
+    sql = """
+        SET NOCOUNT ON
+        declare @date1 as date = ?
+        declare @date2 as date = ?
+    
+        DECLARE @St AS TABLE (Code VARCHAR(50))
+        INSERT INTO @St( Code )
+        select [Code]  FROM [Bazooka].[dbo].[State] where [ID]<=51
+    
+        If(OBJECT_ID('tempdb.. #loadID') Is Not Null)
+        Begin
+        Drop Table  #loadID
+        End
+        create table #loadID (loadID int)
+        insert into #loadID
+        select
+        L.Id  'loadID'
+    
+    
+        from Bazooka.dbo.[load] L
+        INNER JOIN @St SO ON SO.Code = L.OriginStateCode
+            INNER JOIN @St SD ON SD.Code = L.DestinationStateCode
+        where L.StateType = 1 and L.progresstype=1 and L.totalrate>150
+        and  L.LoadDate between @Date1 and @Date2  and L.Miles>0 and L.division in (1, 2)
+        AND L.Mode = 1  
+        AND L.ShipmentType not in (3,4,6,7)
+     
+    
+        select L.Id  'loadID', convert (date,L.loaddate) 'loaddate',l.TotalValue 'value',
+        L.totalrate 'customer_rate', L.EquipmentType 'equipment',
+        L.equipmentlength,
+        L.miles,
+        (case when LSP.[ScheduleCloseTime] = '1753-01-01' then 
+        convert(datetime, CONVERT(date, LSP.LoadByDate)) + convert(datetime, CONVERT(time, LSP.CloseTime)) 
+        else LSP.[ScheduleCloseTime] end) 'pu_appt',
+        L.OriginCityName + '-'+L.OriginStateCode 'origin',
+        L.DestinationCityName + '-'+L.DestinationStateCode 'destination',
+        CityO.Longitude 'originLon',CityO.Latitude 'originLat',
+        CityD.Longitude 'destinationLon',CityD.Latitude 'destinationLat',
+         RCO.ClusterNAME 'originCluster'
+        ,RCD.ClusterName 'destinationCluster'
+        ,RCO.ClusterNAME+'-'+RCD.ClusterName 'corridor'
+        ,COALESCE(C.DandBIndustryId,0)  'industryID', 
+        COALESCE(D.Code,'unknown') 'industry'
+        from #loadID ID
+        inner join bazooka.dbo.load L on ID.loadID = l.id
+        inner join bazooka.dbo.LoadCustomer LCUS on L.id=LCUS.LoadID AND LCUS.Main = 1
+        INNER JOIN Bazooka.dbo.Customer CUS ON LCUS.CustomerID = CUS.ID
+        LEFT JOIN Bazooka.dbo.Customer PCUS ON CUS.ParentCustomerID = PCUS.ID
+        inner join bazooka.dbo.loadstop LSP on LSP.id=L.OriginLoadStopID
+        inner join bazooka.dbo.City CityO on CityO.id=l.origincityid --LSP.CityID
+        inner join bazooka.dbo.City CityD on CityD.id=l.destinationcityid --.CityID
+        LEFT JOIN Analytics.CTM.RateClusters RCO ON RCO.BazookaCityId = CityO.ID
+        LEFT JOIN Analytics.CTM.RateClusters RCD ON RCD.BazookaCityId = CityD.ID
+        left join bazooka.dbo.CustomerRelationshipManagement  C on C.CustomerID=LCUS.CustomerID
+        left join bazooka.dbo.DandBIndustry D  on C.DandBIndustryId=D.DandBIndustryId
+       where 
+        CUS.Name not like 'UPS%'
+        AND --COALESCE(PCUS.CODE,CUS.CODE) NOT IN ('UPSAMZGA','UPSRAILPEA')
+        COALESCE(PCUS.ID,CUS.ID) NOT IN (84739,126657) 
+
+        """
+    ###
     df = pd.read_sql(sql = sql, con = cn, params=(date1,date2,))
     return df
 
-def makeMatrix(x,y,z=[]):  #x is the hist load list, y is the unique ode list; x and y are pd.df structure
+def multi_makeMatrix(x,y,z=[]):  #x is the hist load list, y is the unique ode list; x and y are pd.df structure
+    # this function is defined for multiple carriers. if we have only 1, no need to set Z as a set
     kpiMatrix = []
     odlist=[]
     for i in z:
@@ -122,6 +205,21 @@ def makeMatrix(x,y,z=[]):  #x is the hist load list, y is the unique ode list; x
             if (len(selectedloads)>0):
                 odlist.append(j.corridor)
                 kpiMatrix.append(carrier_ode_loads_kpi_std(i,j,loads,np.mean(np.asarray(std1)),np.std(np.asarray(std1))))
+    return  kpiMatrix, odlist
+
+def makeMatrix(x,y,z):  #x is the hist load list, y is the unique ode list; x and y are pd.df structure
+    kpiMatrix = []
+    odlist=[]
+    for j in y.itertuples():
+        loads=[]
+        std1=[]
+        selectedloads=x[(x['carrierID'] == z) & (x['corridor']==j.corridor)]   ### Check this capital or little c
+        for k in  selectedloads.itertuples():
+            loads.append(k)
+            std1.append(k.kpiScore)
+        if (len(selectedloads)>0):
+            odlist.append(j.corridor)
+            kpiMatrix.append(carrier_ode_loads_kpi_std(z,j,loads,np.mean(np.asarray(std1)),np.std(np.asarray(std1))))
     return  kpiMatrix, odlist
    
 def get_odelist_hist(loadlist):
@@ -238,23 +336,26 @@ def hist_scoring(carrier_scores_df, carrierID, loadID):
 
     return score_df        
 
-def check(carrier_load,newloads,carrier,corridor_info):
+def check(carrier_load,newloads,carrier):
     if carrier_load['flag']==1:
         loadList=carrier_load['histload']
-        filepath = '{}carrier{}histload.csv'.format(CONFIG.carrierDataPath, carrier.carrierID)
-        loadList.to_csv(filepath,index=False)
+        #filepath = '{}carrier{}histload.csv'.format(CONFIG.carrierDataPath, carrier.carrierID)
+        #loadList.to_csv(filepath,index=False)
+        #no need to save the temp file any longer
         # loadList=  Carrier_Load_loading(1000)
         carrier_load_score=indiv_recommender(carrier, newloads, loadList)
     else:
-        carrier_load_score=general_recommender(carrier,newloads,corridor_info)   
+        carrier_load_score=general_recommender(carrier,newloads)
+        #corridor info is saved in the database now
 
     return (carrier_load_score)            
 
-def general_recommender(carrier,newloads,corridor_info):
+def general_recommender(carrier,newloads):
     ##for new carriers, which has no hist data
     # margin and rpm and margin perc, needs to use all data from this corridor, no need to grab only from this carrier if this is a new carrier
     carrier_load_score=[]
     carrierID = int(carrier.carrierID)
+    corridor_info = Get_corridorinfo()
     for i in range(0, len(newloads)):
         newload = newloads.iloc[i]
         if (any(corridor_info.corridor==newload.corridor)):
@@ -291,25 +392,17 @@ def indiv_recommender(carrier,newloads,loadList):
     # odelist = set(histode)   # set is not useful for the object list
     odelist = histode.drop_duplicates(subset=['origin', 'destination', 'equipment'])
 
-    kpiMatrix,kpi_odlist = makeMatrix(loadList, odelist, carriers)
-
+    #kpiMatrix,kpi_odlist = makeMatrix(loadList, odelist, carriers)
+    kpiMatrix, kpi_odlist = makeMatrix(loadList, odelist, carrierID)
     carrier_load_score = []
 
     for i in range(0, len(newloads)):
         newload=newloads.iloc[i]
         new_ode=newload_ode.iloc[i]
-
         matchlist,   weight, corridor_vol = find_ode(kpiMatrix,new_ode,kpi_odlist )
-        ## updated, match list will be a list of all matched loads. i.e. one new load can only have one matched list
-        ##weight is also a list of load coresponding weight
-        if corridor_vol>min(len(loadList)*0.1,10):
-            desired_OD = 100
-        else:
-            desired_OD = 0
         if len(matchlist) > 0:
             score = similarity(matchlist, newload, weight)
-            score['desired_OD'] = desired_OD
-            carrier_load_score.append(score)
+            score['desired_OD'] = 100 if corridor_vol > min(len(loadList) * 0.1, 10) else 0
         else:
             score = {'carrierID': carrierID,
                     'loadID': int(newload.loadID),
@@ -321,7 +414,7 @@ def indiv_recommender(carrier,newloads,loadList):
                     'margin_perc':pd.DataFrame.mean(loadList.margin_perc),
                     'desired_OD': 0}
 
-            carrier_load_score.append(score)
+        carrier_load_score.append(score)
 
     return (carrier_load_score)
 
@@ -373,7 +466,7 @@ def reasoning(results_df):
         reasons.append ( reason_label[scores.index(max(scores))])
     return reasons
 
-def api_json_output(results_df,carrierID):
+def api_json_output(results_df):
     results_df['Score'] = results_df['Score'].apply(np.int)
     api_resultes_df = results_df[['loadID', 'Reason', 'Score']]
     loads=[]
@@ -405,7 +498,7 @@ def recommender( carrier_load,trucks_df):
     gap_default=48
     date1_default = now.strftime("%Y-%m-%d")
     date2_default = (datetime.timedelta(1) + now).strftime("%Y-%m-%d")
-    corridor_info = pd.read_csv("corridor_margin.csv")  # should be saved somewhere
+    #corridor_info = pd.read_csv("corridor_margin.csv")  # should be saved somewhere
 
     ##initialization of the final results
     #results_sort_df = pd.DataFrame(columns=['loadID', 'Reason', 'Score'])
@@ -454,6 +547,7 @@ def recommender( carrier_load,trucks_df):
             # if (len(carrier_load_score) > 0):
             results_df = pd.DataFrame(carrier_load_score).merge(newloads_select, left_on="loadID", right_on="loadID",
                                                                 how='inner')
+            corridor_info = Get_corridorinfo()
             results_df = results_df.merge(corridor_info, left_on='corridor', right_on='corridor', how='left')
             results_df['corrdor_margin_perc'].fillna(0, inplace=True)
             # results_df.merge(newloads_df,left_on="loadID",right_on="loadID",how='inner')
@@ -470,7 +564,7 @@ def recommender( carrier_load,trucks_df):
             results_df['Reason'] = reasoning(results_df)
             results_sort_df = results_df[results_df.Score > 0].sort_values(by=['Score'], ascending= False)
             
-            result_json=api_json_output(results_sort_df,carrier.carrierID)
+            result_json=api_json_output(results_sort_df)
             #print ('test')
     return result_json
 
