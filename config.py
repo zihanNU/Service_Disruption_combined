@@ -30,7 +30,7 @@ class Config(object):
         self.__modelPath = None
         self.__logPath = None
         self.__carrierDataPath = None
-        self.__dataScienceConnString = None
+        self.__researchScienceConnString = None
         self.__bazookaReplConnString = None
         self.__bazookaAnalyticsConnString = None
         self.__versionNumber = None
@@ -59,8 +59,8 @@ class Config(object):
         return self.__carrierDataPath
 
     @property
-    def dataScienceConnString(self):
-        return self.__dataScienceConnString
+    def researchScienceConnString(self):
+        return self.__researchScienceConnString
 
     @property
     def bazookaReplConnString(self):
@@ -86,11 +86,11 @@ class Config(object):
     def setConnectionStrings(self):
         _connStringsNode = self.rootElement.find('connectionStrings')
         
-        _dataScienceConnString = _connStringsNode.find('dataScience').text
+        _researchScienceConnString = _connStringsNode.find('researchScience').text
         _bazookaReplConnString = _connStringsNode.find('bazookaRepl').text
         _bazookaAnalyticsConnString = _connStringsNode.find('bazookaAnalytics').text
         
-        self.__dataScienceConnString = '' if _dataScienceConnString is None else _dataScienceConnString
+        self.__researchScienceConnString = '' if _researchScienceConnString is None else _researchScienceConnString
         self.__bazookaReplConnString = '' if _bazookaReplConnString is None else _bazookaReplConnString
         self.__bazookaAnalyticsConnString = '' if _bazookaAnalyticsConnString is None else _bazookaAnalyticsConnString
     

@@ -85,18 +85,20 @@ def Get_truck(carrierID):
     
 #Give CarrierID
 def Get_Carrier_histLoad (CarrierID,date1,date2):
-    cn = pyodbc.connect(CONFIG.bazookaAnalyticsConnString)
-    sql = "{call dbo.spCarrier_GetHistLoadsForResearchMatching(?,?,?)}"
+    #cn = pyodbc.connect(CONFIG.bazookaAnalyticsConnString)
+    #sql = "{call dbo.spCarrier_GetHistLoadsForResearchMatching(?,?,?)}"
     ##### The new query, database changed to AnalyticsDev, may need a new string as AnalyticsDevConnString
-    cn = pyodbc.connect('DRIVER={SQL Server};SERVER=ANALYTICSDev;DATABASE=ResearchScience;trusted_connection=true')
+    cn = pyodbc.connect(CONFIG.researchScienceConnString)#'DRIVER={SQL Server};SERVER=ANALYTICSDev;DATABASE=ResearchScience;trusted_connection=true')
     sql = """
-            set nocount on
-            declare @CarrierID as int =?   
-            declare @date1 as date = ?
-            declare @date2 as date =?
-            select * from [ResearchScience].[dbo].[Recommendation_HistLoads]
-            where CarrierID= @CarrierID  
-            and loaddate between @date1 and @date2
+            SET NOCOUNT ON
+            DECLARE @CarrierID as int =?   
+            DECLARE @date1 as date = ?
+            DECLARE @date2 as date =?
+            
+            SELECT * 
+            FROM [ResearchScience].[dbo].[Recommendation_HistLoads]
+            WHERE CarrierID= @CarrierID  
+            AND loaddate BETWEEN @date1 and @date2
     	"""
     ###
     histload = pd.read_sql(sql = sql, con = cn, params=(CarrierID,date1,date2,))
@@ -543,7 +545,7 @@ def recommender( carrier_load,trucks_df):
             (newloads_df.originDH <= originRadius) | (newloads_df.totalDH <= (originRadius+destRadius)) & (newloads_df.puGap <= gap_default)]
 
         if len(newloads_select) > 0:
-            carrier_load_score = check(carrier_load, newloads_select,carrier,corridor_info)
+            carrier_load_score = check(carrier_load, newloads_select,carrier)#,corridor_info)
             # if (len(carrier_load_score) > 0):
             results_df = pd.DataFrame(carrier_load_score).merge(newloads_select, left_on="loadID", right_on="loadID",
                                                                 how='inner')
@@ -572,6 +574,8 @@ def recommender( carrier_load,trucks_df):
 @app.route('/search/',methods=['GET'])
 def search():
     LOGGER.info("GET /search/ called")
+
+    
     try:
         truck = {'carrierID':0,
                 'originLat': None,
@@ -585,10 +589,15 @@ def search():
                 'originDeadHead_radius': 0,
                 'destinationDeadHead_radius': 0
                 }
+
         truck_input = request.args.to_dict()
         truck.update(truck_input)
-        truck['cargolimit'] = Get_truckinsurance(truck['carrierID'])
-        carrier_load = Get_Carrier_histLoad(truck['carrierID'],(datetime.timedelta(-90-7) + now).strftime("%Y-%m-%d"),
+        carrierID = truck['carrierID']
+
+        if not carrierID.isdigit():
+            raise ValueError("carrierID parameter must be assigned")
+        truck['cargolimit'] = Get_truckinsurance(carrierID)
+        carrier_load = Get_Carrier_histLoad(carrierID,(datetime.timedelta(-90-7) + now).strftime("%Y-%m-%d"),
 	                                        (datetime.timedelta(-7) + now).strftime("%Y-%m-%d"))
                                             
         carriers = []
