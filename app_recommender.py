@@ -111,7 +111,8 @@ def Get_Carrier_histLoad (CarrierID,date1,date2):
 
 def Get_corridorinfo():
     #database changed to AnalyticsDev, may need a new string as AnalyticsDevConnString
-    cn = pyodbc.connect('DRIVER={SQL Server};SERVER=ANALYTICSDev;DATABASE=ResearchScience;trusted_connection=true')
+    #cn = pyodbc.connect('DRIVER={SQL Server};SERVER=ANALYTICSDev;DATABASE=ResearchScience;trusted_connection=true')
+    cn = pyodbc.connect(CONFIG.researchScienceConnString)  # I just copied from Get_Carrier_histLoad
     sql="""select * from [ResearchScience].[dbo].[Recommendation_CorridorMargin]"""
     corridor_info=pd.read_sql(sql = sql, con = cn)
     return corridor_info
@@ -135,10 +136,8 @@ def Get_newload(date1,date2):
         End
         create table #loadID (loadID int)
         insert into #loadID
-        select
-        L.Id  'loadID'
-    
-    
+        select distinct
+        L.Id  'loadID' 
         from Bazooka.dbo.[load] L
         INNER JOIN @St SO ON SO.Code = L.OriginStateCode
             INNER JOIN @St SD ON SD.Code = L.DestinationStateCode
@@ -470,7 +469,7 @@ def reasoning(results_df):
 
 def api_json_output(results_df):
     results_df['Score'] = results_df['Score'].apply(np.int)
-    api_resultes_df = results_df[['loadID', 'Reason', 'Score']]
+    #api_resultes_df = results_df[['loadID', 'Reason', 'Score']]
     loads=[]
     #print (results_json)
 ##    results_df.to_csv(
@@ -481,9 +480,10 @@ def api_json_output(results_df):
 ##                 'totalDH', 'margin_perc', 'estimated_margin', 'corrdor_margin_perc', 'estimated_margin%',
 ##                 'puGap', 'ODH_Score', 'totalDH_Score', 'puGap_Score',
 ##                 'margin_Score', 'hist_perf', 'Score', 'Reason'])
-    for i in api_resultes_df.index:
-        load=api_resultes_df.loc[i]
-        
+##    for i in api_resultes_df.index:
+##        load=api_resultes_df.loc[i]
+    for i in results_df.index:
+        load = results_df.loc[i]
         _loadid = load["loadID"].item()
         _reason = load["Reason"]
         _score = load["Score"].item()
@@ -566,7 +566,7 @@ def recommender( carrier_load,trucks_df):
             results_df['Reason'] = reasoning(results_df)
             results_sort_df = results_df[results_df.Score > 0].sort_values(by=['Score'], ascending= False)
             
-            result_json=api_json_output(results_sort_df)
+            result_json=api_json_output(results_sort_df[['loadID', 'Reason', 'Score']])
             #print ('test')
     return result_json
 
