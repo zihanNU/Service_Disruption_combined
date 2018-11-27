@@ -438,6 +438,18 @@ def recommender( carrier_load,trucks_df):
     newloads_df = newloadsall_df[(newloadsall_df.value <= float(carrier.cargolimit))
                                 & [carrier.EquipmentType in equip for equip in newloadsall_df.equipment]
                                 & (newloadsall_df.equipmentlength <= float(carrier.EquipmentLength))]
+
+    ## add a condition to filter the corridors that this carrier is interested in in the history
+    if carrier.originLat is None or carrier.originLon is None:
+        if carrier_load['flag'] == 1:
+            # loadList_ode = carrier_load['histload']['corridor'].tolist()
+            origins = carrier_load['histload']['originCluster'].tolist()
+            dests = carrier_load['histload']['destinationCluster'].tolist()
+            newloads_df = newloads_df[
+                (newloads_df['originCluster'].isin(origins)) | (newloads_df['destinationCluster'].isin(dests))]
+        # newloads_df = newloads_df[ (newloads_df['corridor'].isin(loadList_ode)) or (newloads_df['originCluster'].isin(origins))]
+    ### End
+
     # newloads_df = newloadsall_df[
     #     (newloadsall_df.value <= carrier.cargolimit) & (newloadsall_df.equipment == carrier.EquipmentType)]
     originRadius = originDH_default if carrier.originDeadHead_radius == 0 else float(carrier.originDeadHead_radius)
