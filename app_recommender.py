@@ -19,6 +19,9 @@ import os
 import config 
 from logging.config import dictConfig
 
+
+import queries
+
 dictConfig({
     'version': 1,
     'root': {
@@ -33,7 +36,6 @@ if not os.path.exists(CONFIG.logPath):
     os.makedirs(CONFIG.logPath)
 #initialize logging
 LOGFILENAME = CONFIG.logPath + LOGFILENAME
-#print("LOGFILENAME:{}".format(LOGFILENAME))
 logging.basicConfig(filename=LOGFILENAME, format='%(asctime)s  %(name)s:%(levelname)s:%(message)s')
 LOGGER = logging.getLogger('app_recommender_api_log')
 LOGGER.info("*** Flask restart t={} name={}".format(datetime.datetime.now(), __name__))
@@ -41,6 +43,9 @@ LOGGER.info("*** Flask restart t={} name={}".format(datetime.datetime.now(), __n
 #setup data location
 if not os.path.exists(CONFIG.carrierDataPath):
     os.makedirs(CONFIG.carrierDataPath)
+
+#setup QUERY engine
+QUERY = queries.QueryCollection(CONFIG.researchScienceConnString)
 
 class originDestinationEquipment:
     def  __init__(self,origin,destination,equipment):
@@ -83,31 +88,6 @@ def Get_truck(carrierID):
     trucks=pd.read_sql(query,cn,params= [carrierID])
     return trucks
     
-#Give CarrierID
-def Get_Carrier_histLoad (CarrierID,date1,date2):
-    #cn = pyodbc.connect(CONFIG.bazookaAnalyticsConnString)
-    #sql = "{call dbo.spCarrier_GetHistLoadsForResearchMatching(?,?,?)}"
-    ##### The new query, database changed to AnalyticsDev, may need a new string as AnalyticsDevConnString
-    cn = pyodbc.connect(CONFIG.researchScienceConnString)#'DRIVER={SQL Server};SERVER=ANALYTICSDev;DATABASE=ResearchScience;trusted_connection=true')
-    sql = """
-            SET NOCOUNT ON
-            DECLARE @CarrierID as int =?   
-            DECLARE @date1 as date = ?
-            DECLARE @date2 as date =?
-            
-            SELECT * 
-            FROM [ResearchScience].[dbo].[Recommendation_HistLoads]
-            WHERE CarrierID= @CarrierID  
-            AND loaddate BETWEEN @date1 and @date2
-    	"""
-    ###
-    histload = pd.read_sql(sql = sql, con = cn, params=(CarrierID,date1,date2,))
-    if (len(histload)==0):
-        return {'flag':0,'histload':0}
-    #histload['corridor_max']=max(histload.corridor_count)
-    histload['origin_max']=max(histload.origin_count)
-    histload['dest_max']=max(histload.dest_count)
-    return {'flag':1,'histload':histload}
 
 def Get_corridorinfo():
     #database changed to AnalyticsDev, may need a new string as AnalyticsDevConnString
@@ -261,9 +241,7 @@ def hist_scoring(carrier_scores_df, carrierID, loadID):
     select_k = max(math.ceil(len(carrier_scores_df) * k), min(10, len(carrier_scores_df)))
     
     carrier_scores_select = carrier_scores_df.sort_values(by=['similarity', 'kpi'], ascending=False)[0:select_k]
-    #if len(carrier_scores_select) == 0:
-        #print(carrier_info.carrierID, carrier_info.loadID)
-        #print(carrierID, loadID)
+
     sim_score = sum(carrier_scores_select.kpi * carrier_scores_select.similarity * carrier_scores_select.weight) / len(carrier_scores_select)  # top n loads
     sim_margin = sum(carrier_scores_select.margin_perc) / len(carrier_scores_select)
     sim_rpm = sum(carrier_scores_select.rpm) / len(carrier_scores_select)
@@ -477,7 +455,6 @@ def recommender( carrier_load,trucks_df):
 
         # need to change, if not null for origin, update origin; if not null for dest, update dest,
         # if not null for date, select date from to.
-        #print(carrier.carrierID)
 
         newloads_select = newloads_df[
             (newloads_df.originDH <= originRadius) | (newloads_df.totalDH <= (originRadius+destRadius)) & (newloads_df.puGap <= gap_default)]
@@ -488,10 +465,8 @@ def recommender( carrier_load,trucks_df):
             results_df = pd.DataFrame(carrier_load_score).merge(newloads_select, left_on="loadID", right_on="loadID",
                                                                 how='inner')
 
-            print(results_df.loc[results_df['loadID'] == 15240524])
             corridor_info = Get_corridorinfo()
             results_df = results_df.merge(corridor_info, left_on='corridor', right_on='corridor', how='left')
-            print(results_df.loc[results_df['loadID'] == 15240524])
 
             results_df['corrdor_margin_perc'].fillna(0, inplace=True)
             # results_df.merge(newloads_df,left_on="loadID",right_on="loadID",how='inner')
@@ -509,7 +484,7 @@ def recommender( carrier_load,trucks_df):
             results_sort_df = results_df[results_df.Score > 0].sort_values(by=['Score'], ascending= False)
             
             result_json=api_json_output(results_sort_df[['loadID', 'Reason', 'Score']])
-            #print ('test')
+
     return result_json
 
 
@@ -539,8 +514,8 @@ def search():
         if not carrierID.isdigit():
             raise ValueError("carrierID parameter must be assigned")
         truck['cargolimit'] = Get_truckinsurance(carrierID)
-        carrier_load = Get_Carrier_histLoad(carrierID,(datetime.timedelta(-90-7) + now).strftime("%Y-%m-%d"),
-	                                        (datetime.timedelta(-7) + now).strftime("%Y-%m-%d"))
+        carrier_load = QUERY.Get_Carrier_histLoad(carrierID,(datetime.timedelta(-90-7) + now).strftime("%Y-%m-%d"),
+	                                         (datetime.timedelta(-7) + now).strftime("%Y-%m-%d"))
                                             
         carriers = []
         carriers.append(truck)
