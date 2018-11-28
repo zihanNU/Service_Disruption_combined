@@ -21,6 +21,7 @@ from logging.config import dictConfig
 
 
 import queries
+import engines
 
 dictConfig({
     'version': 1,
@@ -45,7 +46,7 @@ if not os.path.exists(CONFIG.carrierDataPath):
     os.makedirs(CONFIG.carrierDataPath)
 
 #setup QUERY engine
-QUERY = queries.QueryCollection(CONFIG.researchScienceConnString)
+QUERY = engines.QueryEngine(CONFIG.researchScienceConnString)
 
 class originDestinationEquipment:
     def  __init__(self,origin,destination,equipment):
@@ -87,15 +88,6 @@ def Get_truck(carrierID):
     """
     trucks=pd.read_sql(query,cn,params= [carrierID])
     return trucks
-    
-
-def Get_corridorinfo():
-    #database changed to AnalyticsDev, may need a new string as AnalyticsDevConnString
-    #cn = pyodbc.connect('DRIVER={SQL Server};SERVER=ANALYTICSDev;DATABASE=ResearchScience;trusted_connection=true')
-    cn = pyodbc.connect(CONFIG.researchScienceConnString)  # I just copied from Get_Carrier_histLoad
-    sql="""select * from [ResearchScience].[dbo].[Recommendation_CorridorMargin]"""
-    corridor_info=pd.read_sql(sql = sql, con = cn)
-    return corridor_info
 
 def Get_newload(date1,date2):
     cn = pyodbc.connect(CONFIG.bazookaReplConnString)
@@ -272,7 +264,7 @@ def general_recommender(carrier,newloads):
     # margin and rpm and margin perc, needs to use all data from this corridor, no need to grab only from this carrier if this is a new carrier
     carrier_load_score=[]
     carrierID = int(carrier.carrierID)
-    corridor_info = Get_corridorinfo()
+    corridor_info = QUERY.Get_corridorinfo()
     for i in range(0, len(newloads)):
         newload = newloads.iloc[i]
         if (any(corridor_info.corridor==newload.corridor)):
@@ -387,7 +379,7 @@ def api_json_output(results_df):
     results_df['Score'] = results_df['Score'].apply(np.int)
     #api_resultes_df = results_df[['loadID', 'Reason', 'Score']]
     loads=[]
-    #print (results_json)
+
 ##    results_df.to_csv(
 ##        'carrier' + str(carrierID) + '_load_recommender' + datetime.datetime.now().strftime(
 ##            "%Y%m%d-%H%M%S") + '.csv',
@@ -465,7 +457,7 @@ def recommender( carrier_load,trucks_df):
             results_df = pd.DataFrame(carrier_load_score).merge(newloads_select, left_on="loadID", right_on="loadID",
                                                                 how='inner')
 
-            corridor_info = Get_corridorinfo()
+            corridor_info = QUERY.Get_corridorinfo()
             results_df = results_df.merge(corridor_info, left_on='corridor', right_on='corridor', how='left')
 
             results_df['corrdor_margin_perc'].fillna(0, inplace=True)

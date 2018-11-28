@@ -1,11 +1,15 @@
 import pandas as pd
 import pyodbc
 
-class QueryCollection:
+class QueryEngine:
+
+    @property
+    def researchScienceConnectionString(self):
+        return self.__researchScienceConnectionString
 
     def __init__(self, researchScienceConnectionString):
         self.__researchScienceConnectionString = researchScienceConnectionString
-
+        
     def Get_Carrier_histLoad (self, CarrierID,date1,date2):
         cn = pyodbc.connect(self.__researchScienceConnectionString)
         sql = """
@@ -27,3 +31,10 @@ class QueryCollection:
         histload['origin_max']=max(histload.origin_count)
         histload['dest_max']=max(histload.dest_count)
         return {'flag':1,'histload':histload}
+
+
+    def Get_corridorinfo(self):
+        cn = pyodbc.connect(self.__researchScienceConnectionString) 
+        sql="""select * from [ResearchScience].[dbo].[Recommendation_CorridorMargin]"""
+        corridor_info=pd.read_sql(sql = sql, con = cn)
+        return corridor_info
