@@ -44,7 +44,7 @@ if not os.path.exists(CONFIG.carrierDataPath):
     os.makedirs(CONFIG.carrierDataPath)
 
 #setup QUERY engine
-QUERY = engines.QueryEngine(CONFIG.researchScienceConnString)
+QUERY = engines.QueryEngine(CONFIG.researchScienceConnString, CONFIG.bazookaAnalyticsConnString)
 
 class originDestinationEquipment:
     def  __init__(self,origin,destination,equipment):
@@ -60,11 +60,7 @@ class carrier_ode_loads_kpi_std:   # ode here is a pd.df with 4 features, o, d, 
         self.kpi=kpi
         self.std=std
 
-def Get_truckinsurance(carrierID):
-    cn = pyodbc.connect(CONFIG.bazookaAnalyticsConnString)
-    cursor = cn.cursor()
-    row = cursor.execute("{call dbo.spCarrier_GetCargoLimitWithDefault(?)}", (carrierID,)).fetchone()
-    return row.CargoLimit
+
 
 def Get_truck(carrierID):
     cn = pyodbc.connect(CONFIG.bazookaAnalyticsConnString)
@@ -482,7 +478,6 @@ def recommender( carrier_load,trucks_df):
 def search():
     LOGGER.info("GET /search/ called")
 
-    
     try:
         truck = {'carrierID':0,
                 'originLat': None,
@@ -503,7 +498,7 @@ def search():
 
         if not carrierID.isdigit():
             raise ValueError("carrierID parameter must be assigned")
-        truck['cargolimit'] = Get_truckinsurance(carrierID)
+        truck['cargolimit'] = QUERY.Get_truckinsurance(carrierID)
         carrier_load = QUERY.Get_Carrier_histLoad(carrierID,(datetime.timedelta(-90-7) + now).strftime("%Y-%m-%d"),
 	                                         (datetime.timedelta(-7) + now).strftime("%Y-%m-%d"))
                                             
@@ -512,7 +507,6 @@ def search():
         carrier_df = pd.DataFrame(carriers)
         results=recommender(carrier_load, carrier_df)
         return jsonify({'Loads':results, "ver": CONFIG.versionNumber} )
-		#test = Get_truck(1234)
 
     except Exception as ex:
         LOGGER.exception(ex)

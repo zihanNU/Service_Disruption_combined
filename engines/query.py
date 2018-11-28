@@ -7,9 +7,14 @@ class QueryEngine:
     def researchScienceConnectionString(self):
         return self.__researchScienceConnectionString
 
-    def __init__(self, researchScienceConnectionString):
+    @property
+    def bazookaAnalyticsConnString(self):
+        return self.__bazookaAnalyticsConnString        
+
+    def __init__(self, researchScienceConnectionString, bazookaAnalyticsConnString):
         self.__researchScienceConnectionString = researchScienceConnectionString
-        
+        self.__bazookaAnalyticsConnString = bazookaAnalyticsConnString
+
     def Get_Carrier_histLoad (self, CarrierID,date1,date2):
         cn = pyodbc.connect(self.__researchScienceConnectionString)
         sql = """
@@ -38,3 +43,9 @@ class QueryEngine:
         sql="""select * from [ResearchScience].[dbo].[Recommendation_CorridorMargin]"""
         corridor_info=pd.read_sql(sql = sql, con = cn)
         return corridor_info
+
+    def Get_truckinsurance(self, carrierID):
+        cn = pyodbc.connect(self.__bazookaAnalyticsConnString)
+        cursor = cn.cursor()
+        row = cursor.execute("{call dbo.spCarrier_GetCargoLimitWithDefault(?)}", (carrierID,)).fetchone()
+        return row.CargoLimit        
