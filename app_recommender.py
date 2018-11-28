@@ -19,8 +19,6 @@ import os
 import config 
 from logging.config import dictConfig
 
-
-import queries
 import engines
 
 dictConfig({
