@@ -63,7 +63,8 @@ class carrier_ode_loads_kpi_std:   # ode here is a pd.df with 4 features, o, d, 
 
 def Get_truckSearch(carrierID):
     # I merged the daily truck table into the model
-    cn = pyodbc.connect('DRIVER={SQL Server};SERVER=ANALYTICSDev;DATABASE=ResearchScience;trusted_connection=true')
+   cn = pyodbc.connect(CONFIG.researchScienceConnString)
+    #cn = pyodbc.connect('DRIVER={SQL Server};SERVER=ANALYTICSDev;DATABASE=ResearchScience;trusted_connection=true')
     sql = """
            select 
             carrierID, originCluster, destinationCluster
