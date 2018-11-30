@@ -61,6 +61,20 @@ class carrier_ode_loads_kpi_std:   # ode here is a pd.df with 4 features, o, d, 
         self.std=std
 
 
+def Get_truckSearch(carrierID):
+    # I merged the daily truck table into the model
+    cn = pyodbc.connect('DRIVER={SQL Server};SERVER=ANALYTICSDev;DATABASE=ResearchScience;trusted_connection=true')
+    sql = """
+           select 
+            carrierID, originCluster, destinationCluster
+    		 from
+            [ResearchScience].[dbo].[Recommendation_Trucks] 
+            where carrierID=?
+            """
+    truck = pd.read_sql(sql=sql, con=cn, params=[carrierID])
+    trucks_df=truck.drop_duplicates()
+    return trucks_df
+
 
 def Get_truck(carrierID):
     cn = pyodbc.connect(CONFIG.bazookaAnalyticsConnString)
@@ -256,32 +270,47 @@ def check(carrier_load,newloads,carrier):
 def general_recommender(carrier,newloads):
     ##for new carriers, which has no hist data
     # margin and rpm and margin perc, needs to use all data from this corridor, no need to grab only from this carrier if this is a new carrier
-    carrier_load_score=[]
+    #carrier_load_score=[]
     carrierID = int(carrier.carrierID)
     corridor_info = QUERY.Get_corridorinfo()
-    for i in range(0, len(newloads)):
-        newload = newloads.iloc[i]
-        if (any(corridor_info.corridor==newload.corridor)):
-            rpm= corridor_info[corridor_info.corridor==newload.corridor].rpm.values[0]
-            estimate_margin_p = corridor_info[corridor_info.corridor == newload.corridor].corrdor_margin_perc.values[0]
-        elif (any(corridor_info.OriginCluster==newload.originCluster)):
-            rpm = pd.DataFrame.mean(corridor_info[corridor_info.OriginCluster == newload.originCluster].rpm)
-            estimate_margin_p= pd.DataFrame.mean(corridor_info[corridor_info.OriginCluster == newload.originCluster].corrdor_margin_perc)
-        else:
-            rpm=pd.DataFrame.mean(corridor_info.rpm)
-            estimate_margin_p = pd.DataFrame.mean(corridor_info.corrdor_margin_perc)
-        score = {'carrierID': carrierID,
-            'loadID': newload.loadID,
-            # 'origin': newload.originCluster, 'destination': newload.destinationCluster,
-            # 'loaddate': newload.loaddate,
-                'hist_perf': 0, 'rpm': rpm,
-                #'estimated_margin': newload.customer_rate - rpm * (newload.miles + newload.originDH),
-                'estimated_margin': newload.customer_rate - rpm * (newload.miles),
-                'estimated_margin%': estimate_margin_p,
-                'margin_perc': estimate_margin_p,
-                'desired_OD': 0
-            }
-        carrier_load_score.append(score)
+
+    # using merge instead of loop
+    newloads_rate = pd.DataFrame(newloads).merge(corridor_info, left_on="corridor", right_on="corridor",
+                                                 how='inner')
+    carrier_load_score = newloads_rate[['loadID', 'rpm', 'corrdor_margin_perc', 'customer_rate', 'miles']]
+    carrier_load_score['estimated_margin'] = carrier_load_score['customer_rate'] - carrier_load_score['rpm'] * \
+                                             carrier_load_score['miles']
+    carrier_load_score['estimated_margin%'] = carrier_load_score['corrdor_margin_perc']
+    carrier_load_score['margin_perc'] = carrier_load_score['corrdor_margin_perc']
+    carrier_load_score['carrierID'] = carrierID
+    carrier_load_score['hist_perf'] = 0
+    carrier_load_score['desired_OD'] = 0
+    carrier_load_score = carrier_load_score.drop(columns=["corrdor_margin_perc", "customer_rate", "miles"])
+
+
+    # for i in range(0, len(newloads)):
+    #     newload = newloads.iloc[i]
+    #     if (any(corridor_info.corridor==newload.corridor)):
+    #         rpm= corridor_info[corridor_info.corridor==newload.corridor].rpm.values[0]
+    #         estimate_margin_p = corridor_info[corridor_info.corridor == newload.corridor].corrdor_margin_perc.values[0]
+    #     elif (any(corridor_info.OriginCluster==newload.originCluster)):
+    #         rpm = pd.DataFrame.mean(corridor_info[corridor_info.OriginCluster == newload.originCluster].rpm)
+    #         estimate_margin_p= pd.DataFrame.mean(corridor_info[corridor_info.OriginCluster == newload.originCluster].corrdor_margin_perc)
+    #     else:
+    #         rpm=pd.DataFrame.mean(corridor_info.rpm)
+    #         estimate_margin_p = pd.DataFrame.mean(corridor_info.corrdor_margin_perc)
+    #     score = {'carrierID': carrierID,
+    #         'loadID': newload.loadID,
+    #         # 'origin': newload.originCluster, 'destination': newload.destinationCluster,
+    #         # 'loaddate': newload.loaddate,
+    #             'hist_perf': 0, 'rpm': rpm,
+    #             #'estimated_margin': newload.customer_rate - rpm * (newload.miles + newload.originDH),
+    #             'estimated_margin': newload.customer_rate - rpm * (newload.miles),
+    #             'estimated_margin%': estimate_margin_p,
+    #             'margin_perc': estimate_margin_p,
+    #             'desired_OD': 0
+    #         }
+    #     carrier_load_score.append(score)
     return (carrier_load_score)
   
 def indiv_recommender(carrier,newloads,loadList):
@@ -396,6 +425,39 @@ def api_json_output(results_df):
         })
     return loads
 
+
+def filter_newloads(carrier,newloads_df,carrier_load):
+    ## add a condition to filter the corridors that this carrier is interested in in the history
+    ## will extend this ode with search history and DOT inspection data
+    if carrier.originLat is None or carrier.originLon is None:
+        trucks_corridor = Get_truckSearch(carrier.carrierID)
+        newloads_df1 = []
+        newloads_df2 = []
+        if len(trucks_corridor) > 0:
+            newloads_df1 = newloads_df[
+                (newloads_df['originCluster'].isin(trucks_corridor.originCluster)) | (
+                newloads_df['destinationCluster'].isin(trucks_corridor.destinationCluster))]
+        if carrier_load['flag'] == 1:
+            # loadList_ode = carrier_load['histload']['corridor'].tolist()
+            origins = carrier_load['histload']['originCluster'].tolist()
+            dests = carrier_load['histload']['destinationCluster'].tolist()
+            newloads_df2 = newloads_df[
+                (newloads_df['originCluster'].isin(origins)) | (newloads_df['destinationCluster'].isin(dests))]
+        if len(newloads_df1) > 0 and len(newloads_df2) > 0:
+            newloads_df = pd.concat([newloads_df1, newloads_df2])
+            newloads_df = newloads_df.drop_duplicates()
+        elif len(newloads_df1) > 0:
+            newloads_df = newloads_df1
+            newloads_df = newloads_df.drop_duplicates()
+        elif len(newloads_df2) > 0:
+            newloads_df = newloads_df2
+            newloads_df = newloads_df.drop_duplicates()
+
+    return newloads_df
+
+
+
+
 def recommender( carrier_load,trucks_df):
     originDH_default = 250  # get radius
     destDH_default = 300
@@ -425,16 +487,7 @@ def recommender( carrier_load,trucks_df):
                                 & [carrier.EquipmentType in equip for equip in newloadsall_df.equipment]
                                 & (newloadsall_df.equipmentlength <= float(carrier.EquipmentLength))]
 
-    ## add a condition to filter the corridors that this carrier is interested in in the history
-    if carrier.originLat is None or carrier.originLon is None:
-        if carrier_load['flag'] == 1:
-            # loadList_ode = carrier_load['histload']['corridor'].tolist()
-            origins = carrier_load['histload']['originCluster'].tolist()
-            dests = carrier_load['histload']['destinationCluster'].tolist()
-            newloads_df = newloads_df[
-                (newloads_df['originCluster'].isin(origins)) | (newloads_df['destinationCluster'].isin(dests))]
-        # newloads_df = newloads_df[ (newloads_df['corridor'].isin(loadList_ode)) or (newloads_df['originCluster'].isin(origins))]
-    ### End
+    newloads_df=filter_newloads(carrier, newloads_df,carrier_load)
 
     # newloads_df = newloadsall_df[
     #     (newloadsall_df.value <= carrier.cargolimit) & (newloadsall_df.equipment == carrier.EquipmentType)]
