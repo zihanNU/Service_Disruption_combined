@@ -273,7 +273,7 @@ def general_recommender(carrier,newloads):
     # margin and rpm and margin perc, needs to use all data from this corridor, no need to grab only from this carrier if this is a new carrier
     #carrier_load_score=[]
     carrierID = int(carrier.carrierID)
-    corridor_info = QUERY.Get_corridorinfo()
+    corridor_info = QUERY.get_corridorinfo()
 
     # using merge instead of loop
     newloads_rate = pd.DataFrame(newloads).merge(corridor_info, left_on="corridor", right_on="corridor",
@@ -517,7 +517,7 @@ def recommender( carrier_load,trucks_df):
             results_df = pd.DataFrame(carrier_load_score).merge(newloads_select, left_on="loadID", right_on="loadID",
                                                                 how='inner')
 
-            corridor_info = QUERY.Get_corridorinfo()
+            corridor_info = QUERY.get_corridorinfo()
             results_df = results_df.merge(corridor_info, left_on='corridor', right_on='corridor', how='left')
 
             results_df['corrdor_margin_perc'].fillna(0, inplace=True)
@@ -564,8 +564,8 @@ def search():
 
         if not carrierID.isdigit():
             raise ValueError("carrierID parameter must be assigned")
-        truck['cargolimit'] = QUERY.Get_truckinsurance(carrierID)
-        carrier_load = QUERY.Get_Carrier_histLoad(carrierID,(datetime.timedelta(-90-7) + now).strftime("%Y-%m-%d"),
+        truck['cargolimit'] = QUERY.get_truckinsurance(carrierID)
+        carrier_load = QUERY.get_carrier_histload(carrierID,(datetime.timedelta(-90-7) + now).strftime("%Y-%m-%d"),
 	                                         (datetime.timedelta(-7) + now).strftime("%Y-%m-%d"))
                                             
         carriers = []

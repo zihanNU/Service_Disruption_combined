@@ -9,13 +9,13 @@ class QueryEngine:
 
     @property
     def bazookaAnalyticsConnString(self):
-        return self.__bazookaAnalyticsConnString        
+        return self.__bazookaAnalyticsConnString    
 
     def __init__(self, researchScienceConnectionString, bazookaAnalyticsConnString):
         self.__researchScienceConnectionString = researchScienceConnectionString
         self.__bazookaAnalyticsConnString = bazookaAnalyticsConnString
 
-    def Get_Carrier_histLoad (self, CarrierID,date1,date2):
+    def get_carrier_histload (self, CarrierID,date1,date2):
         cn = pyodbc.connect(self.__researchScienceConnectionString)
         sql = """
                 SET NOCOUNT ON
@@ -38,13 +38,13 @@ class QueryEngine:
         return {'flag':1,'histload':histload}
 
 
-    def Get_corridorinfo(self):
+    def get_corridorinfo(self):
         cn = pyodbc.connect(self.__researchScienceConnectionString) 
         sql="""select * from [ResearchScience].[dbo].[Recommendation_CorridorMargin]"""
         corridor_info=pd.read_sql(sql = sql, con = cn)
         return corridor_info
 
-    def Get_truckinsurance(self, carrierID):
+    def get_truckinsurance(self, carrierID):
         cn = pyodbc.connect(self.__bazookaAnalyticsConnString)
         cursor = cn.cursor()
         row = cursor.execute("{call dbo.spCarrier_GetCargoLimitWithDefault(?)}", (carrierID,)).fetchone()
