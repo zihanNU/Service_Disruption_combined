@@ -2,14 +2,51 @@ import unittest
 from unittest.mock import Mock, patch
 import engines
 import types
+import pandas as tpd
+import datetime
 
 class QueryTest(unittest.TestCase):
+
+    now = datetime.datetime.now()
 
     def test_query_constructor(self):
         queryEngine = engines.QueryEngine("researchScienceConnStr", "bazAnalyticsConnStr")
         self.assertEqual("researchScienceConnStr", queryEngine.researchScienceConnectionString, "ResearchScienceConnString Should Equal value")
         self.assertEqual("bazAnalyticsConnStr", queryEngine.bazookaAnalyticsConnString, "bazookaAnalyticsConnString Should Equal input value")
 
+    def test_query_get_carrier_histload_noresults_returns_zeros(self):
+        carrierId = 12345
+        startDate = self.now.strftime("%Y-%m-%d")
+        endDate = (datetime.timedelta(1) + self.now).strftime("%Y-%m-%d")
+        mockConnection = MockPyodbcConnection()
+
+        with patch("pyodbc.connect") as mock_connect:
+            mock_connect.return_value = mockConnection
+            queryEngine = engines.QueryEngine("researchScienceConnStr", "bazAnalyticsConnStr")
+            with patch("pandas.read_sql") as mock_pandas_read_sql:
+                my_df = tpd.DataFrame(columns=['loadId'])
+                mock_pandas_read_sql.return_value = my_df 
+                actual = queryEngine.get_carrier_histload(carrierId, startDate, endDate)
+            self.assertEqual(0, actual['flag'])
+            self.assertEqual(0, actual['histload'])
+
+    def test_query_get_carrier_histload_results_returns_data(self):
+        carrierId = 12345
+        startDate = self.now.strftime("%Y-%m-%d")
+        endDate = (datetime.timedelta(1) + self.now).strftime("%Y-%m-%d")
+        mockConnection = MockPyodbcConnection()        
+        expected = {'loadId': 12345, 'origin_count': 3, 'dest_count': 5}
+
+        with patch("pyodbc.connect") as mock_connect:
+            mock_connect.return_value = mockConnection
+            queryEngine = engines.QueryEngine("researchScienceConnStr", "bazAnalyticsConnStr")
+            with patch("pandas.read_sql") as mock_pandas_read_sql:
+                my_df = tpd.DataFrame(columns=['loadId', 'origin_count', 'dest_count'])
+                my_df.loc[len(my_df)] = expected
+
+                mock_pandas_read_sql.return_value = my_df 
+                actual = queryEngine.get_carrier_histload(carrierId, startDate, endDate)
+            self.assertEqual(1, actual['flag'])
 
     def test_query_get_truckinsurance(self):
 
@@ -24,9 +61,24 @@ class QueryTest(unittest.TestCase):
             actualCargoLimit = queryEngine.get_truckinsurance(1234)
             self.assertEqual(expectedCargoLimit, actualCargoLimit)
 
+    def test_query_get_corridorinfo(self):
+
+        mockConnection = MockPyodbcConnection()
+        expected = {'loadId': 12345}
+
+        with patch("pyodbc.connect") as mock_connect:
+            mock_connect.return_value = mockConnection
+            queryEngine = engines.QueryEngine("researchScienceConnStr", "bazAnalyticsConnStr")
+            with patch("pandas.read_sql") as mock_pandas_read_sql:
+                my_df = tpd.DataFrame(columns=['loadId'])
+                my_df.loc[len(my_df)] = expected
+                mock_pandas_read_sql.return_value = my_df 
+                actual = queryEngine.get_corridorinfo()
+            self.assertEqual(expected["loadId"], actual["loadId"][0])
+
 class MockPyodbcConnection:
 
-    def __init__(self, mockPyodbcCursor):
+    def __init__(self, mockPyodbcCursor = None):
         self.__mockPyodbcCursor = mockPyodbcCursor
 
     def cursor(self):
@@ -34,7 +86,7 @@ class MockPyodbcConnection:
 
 class MockPyodbcCursor:
 
-    def __init__(self, mockDataSet):
+    def __init__(self, mockDataSet = None):
         self.__mockDataSet = mockDataSet
 
     def execute(self, *args):
