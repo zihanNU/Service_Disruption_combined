@@ -12,11 +12,13 @@ class QueryTest(unittest.TestCase):
     def test_query_constructor(self):
         researchScienceConnStr = "research.science.conn.string"
         bazAnalyticsString = "baz.analytics.conn.string"
+        bazReplConnString = "baz.repl.conn.str"
         
-        queryEngine = engines.QueryEngine(researchScienceConnStr, bazAnalyticsString)
+        queryEngine = self.get_queryengine(researchScienceConnStr, bazAnalyticsString, bazReplConnString)
 
         self.assertEqual(researchScienceConnStr, queryEngine.researchScienceConnectionString, "ResearchScienceConnString Should Equal value")
         self.assertEqual(bazAnalyticsString, queryEngine.bazookaAnalyticsConnString, "bazookaAnalyticsConnString Should Equal input value")
+        self.assertEqual(bazReplConnString, queryEngine.bazookaReplConnString, "bazookaReplConnStr Should Equal input value")
 
 
     def test_query_get_carrier_histload_noresults_returns_zeros(self):
@@ -27,7 +29,7 @@ class QueryTest(unittest.TestCase):
 
         with patch("pyodbc.connect") as mock_connect:
             mock_connect.return_value = mockConnection
-            queryEngine = engines.QueryEngine("researchScienceConnStr", "bazAnalyticsConnStr")
+            queryEngine = self.get_queryengine()
             with patch("pandas.read_sql") as mock_pandas_read_sql:
                 my_df = tpd.DataFrame(columns=['loadId'])
                 mock_pandas_read_sql.return_value = my_df 
@@ -45,7 +47,7 @@ class QueryTest(unittest.TestCase):
 
         with patch("pyodbc.connect") as mock_connect:
             mock_connect.return_value = mockConnection
-            queryEngine = engines.QueryEngine("researchScienceConnStr", "bazAnalyticsConnStr")
+            queryEngine = self.get_queryengine()
             with patch("pandas.read_sql") as mock_pandas_read_sql:
                 my_df = tpd.DataFrame(columns=['loadId', 'origin_count', 'dest_count'])
                 my_df.loc[len(my_df)] = expected
@@ -64,7 +66,7 @@ class QueryTest(unittest.TestCase):
 
         with patch("pyodbc.connect") as mock_connect:
             mock_connect.return_value = mockConnection
-            queryEngine = engines.QueryEngine("researchScienceConnStr", "bazAnalyticsConnStr")
+            queryEngine = self.get_queryengine()
             actualCargoLimit = queryEngine.get_truckinsurance(1234)
             self.assertEqual(expectedCargoLimit, actualCargoLimit)
 
@@ -76,13 +78,17 @@ class QueryTest(unittest.TestCase):
 
         with patch("pyodbc.connect") as mock_connect:
             mock_connect.return_value = mockConnection
-            queryEngine = engines.QueryEngine("researchScienceConnStr", "bazAnalyticsConnStr")
+            queryEngine = self.get_queryengine()
             with patch("pandas.read_sql") as mock_pandas_read_sql:
                 my_df = tpd.DataFrame(columns=['loadId'])
                 my_df.loc[len(my_df)] = expected
                 mock_pandas_read_sql.return_value = my_df 
                 actual = queryEngine.get_corridorinfo()
             self.assertEqual(expected["loadId"], actual["loadId"][0])
+
+    def get_queryengine(self, researchScienceConnStr = "research.science.conn.string", bazAnalyticsString = "baz.analytics.conn.string", bazookaReplConnStr = "baz.replication.conn.string"):
+        return engines.QueryEngine(researchScienceConnStr, bazAnalyticsString, bazookaReplConnStr)
+        
 
 
 class MockPyodbcConnection:

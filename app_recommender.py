@@ -44,7 +44,7 @@ if not os.path.exists(CONFIG.carrierDataPath):
     os.makedirs(CONFIG.carrierDataPath)
 
 #setup QUERY engine
-QUERY = engines.QueryEngine(CONFIG.researchScienceConnString, CONFIG.bazookaAnalyticsConnString)
+QUERY = engines.QueryEngine(CONFIG.researchScienceConnString, CONFIG.bazookaAnalyticsConnString, CONFIG.bazookaReplConnString)
 
 class originDestinationEquipment:
     def  __init__(self,origin,destination,equipment):
@@ -61,35 +61,6 @@ class carrier_ode_loads_kpi_std:   # ode here is a pd.df with 4 features, o, d, 
         self.std=std
 
 
-
-
-
-def Get_truck(carrierID):
-    cn = pyodbc.connect(CONFIG.bazookaAnalyticsConnString)
-    query= """
-    SELECT 
-    carrierID,car.name,EmptyDate,EquipmentType,EquipmentLength,
-    OriginLatitude 'originLat',
-    OriginLongitude    'originLon',
-    DestinationLatitude   'destLat',
-    DestinationLongitude  'destLon',
-    originDeadHead 'originDeadHead_radius',
-    destinationDeadHead 'destinationDeadHead_radius',
-    car.cargolimit
-    FROM bazooka.dbo.Truck Tru
-        inner join bazooka.dbo.Carrier Car on Car.ID=Tru.CarrierID and Name not like 'UPS%'
-    WHERE convert (date,EmptyDate) BETWEEN convert(date,getdate ()) AND convert(date,dateadd (day,1,GETDATE()))
-        AND OriginLongitude<0 and DestinationLongitude<0
-    AND carrierID=?
-    """
-    trucks=pd.read_sql(query,cn,params= [carrierID])
-    return trucks
-
-def Get_newload(date1,date2):
-    cn = pyodbc.connect(CONFIG.bazookaReplConnString)
-    sql = "{call Research.spLoad_GetNonUPSActiveLoadsForResearchMatching(?,?)}"
-    df = pd.read_sql(sql = sql, con = cn, params=(date1,date2,))
-    return df
 
 def multi_makeMatrix(x,y,z=[]):  #x is the hist load list, y is the unique ode list; x and y are pd.df structure
     # this function is defined for multiple carriers. if we have only 1, no need to set Z as a set
@@ -458,7 +429,7 @@ def recommender( carrier_load,trucks_df):
     #results_sort_df = pd.DataFrame(columns=['loadID', 'Reason', 'Score'])
     result_json = {'Loads': [], "ver": CONFIG.versionNumber}
     carrier = trucks_df.iloc[0]
-    newloadsall_df = Get_newload(date1_default,date2_default)
+    newloadsall_df = QUERY.get_newload(date1_default,date2_default)
     ### should deal with if equipmenttype is a string carrier['EquipmentType'].fillna('', inplace=True)
     ###This part is for new api input
     

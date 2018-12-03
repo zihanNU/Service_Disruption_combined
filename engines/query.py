@@ -9,11 +9,16 @@ class QueryEngine:
 
     @property
     def bazookaAnalyticsConnString(self):
-        return self.__bazookaAnalyticsConnString    
+        return self.__bazookaAnalyticsConnString   
 
-    def __init__(self, researchScienceConnectionString, bazookaAnalyticsConnString):
+    @property
+    def bazookaReplConnString(self):
+        return self.__bazookaReplConnString 
+
+    def __init__(self, researchScienceConnectionString, bazookaAnalyticsConnString, bazookaReplConnString):
         self.__researchScienceConnectionString = researchScienceConnectionString
         self.__bazookaAnalyticsConnString = bazookaAnalyticsConnString
+        self.__bazookaReplConnString = bazookaReplConnString
 
     def get_carrier_histload (self, CarrierID,date1,date2):
         cn = pyodbc.connect(self.__researchScienceConnectionString)
@@ -66,3 +71,9 @@ class QueryEngine:
         truck = pd.read_sql(sql=sql, con=cn, params=[carrierID])
         trucks_df=truck.drop_duplicates()
         return trucks_df   
+
+    def get_newload(self, startDate,endDate):
+        cn = pyodbc.connect(self.__bazookaReplConnString)
+        sql = "{call Research.spLoad_GetNonUPSActiveLoadsForResearchMatching(?,?)}"
+        df = pd.read_sql(sql = sql, con = cn, params=(startDate,endDate,))
+        return df        
