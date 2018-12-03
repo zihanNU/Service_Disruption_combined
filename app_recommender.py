@@ -61,20 +61,7 @@ class carrier_ode_loads_kpi_std:   # ode here is a pd.df with 4 features, o, d, 
         self.std=std
 
 
-def Get_truckSearch(carrierID):
-    """Merged the daily truck table into the model"""
-    
-    cn = pyodbc.connect(CONFIG.researchScienceConnString)
-    sql = """
-           select 
-            carrierID, originCluster, destinationCluster
-    		 from
-            [ResearchScience].[dbo].[Recommendation_Trucks] 
-            where carrierID=?
-            """
-    truck = pd.read_sql(sql=sql, con=cn, params=[carrierID])
-    trucks_df=truck.drop_duplicates()
-    return trucks_df
+
 
 
 def Get_truck(carrierID):
@@ -431,7 +418,7 @@ def filter_newloads(carrier,newloads_df,carrier_load):
     ## add a condition to filter the corridors that this carrier is interested in in the history
     ## will extend this ode with search history and DOT inspection data
     if carrier.originLat is None or carrier.originLon is None:
-        trucks_corridor = Get_truckSearch(carrier.carrierID)
+        trucks_corridor = QUERY.get_trucksearch(carrier.carrierID)
         newloads_df1 = []
         newloads_df2 = []
         if len(trucks_corridor) > 0:

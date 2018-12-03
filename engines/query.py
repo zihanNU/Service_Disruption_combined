@@ -44,8 +44,25 @@ class QueryEngine:
         corridor_info=pd.read_sql(sql = sql, con = cn)
         return corridor_info
 
+
     def get_truckinsurance(self, carrierID):
         cn = pyodbc.connect(self.__bazookaAnalyticsConnString)
         cursor = cn.cursor()
-        row = cursor.execute("{call dbo.spCarrier_GetCargoLimitWithDefault(?)}", (carrierID,)).fetchone()
-        return row.CargoLimit        
+        row = cursor.execute("{call [Research].[spCarrier_GetCargoLimitWithDefault](?)}", (carrierID,)).fetchone()
+        return row.CargoLimit     
+
+
+    def get_trucksearch(self, carrierID):
+        """Merged the daily truck table into the model"""
+
+        cn = pyodbc.connect(self.__researchScienceConnectionString)
+        sql = """
+            select 
+                carrierID, originCluster, destinationCluster
+                from
+                [ResearchScience].[dbo].[Recommendation_Trucks] 
+                where carrierID=?
+                """
+        truck = pd.read_sql(sql=sql, con=cn, params=[carrierID])
+        trucks_df=truck.drop_duplicates()
+        return trucks_df   
