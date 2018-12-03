@@ -12,21 +12,23 @@ except Exception as ex:
     raise ex
 
 class Config(object):
-    #DEBUG = False
-    #TESTING = False
 
     def __init__(self, rootElement, version):
         self.initializeProperties()
-        self.__rootElement = rootElement
+        __rootElement = rootElement
 
         self.__versionNumber =  version
 
-        self.setPaths()
-        self.setConnectionStrings()
+        if __rootElement != None:
+            pathNode =  __rootElement.find('paths')
+            self.setPaths(pathNode)
+
+        if __rootElement != None:
+            connNode = __rootElement.find('connectionStrings')
+            self.setConnectionStrings(connNode)
 
 
     def initializeProperties(self):
-        self.__rootElement = None
         self.__modelPath = None
         self.__logPath = None
         self.__carrierDataPath = None
@@ -35,12 +37,6 @@ class Config(object):
         self.__bazookaAnalyticsConnString = None
         self.__versionNumber = None
 
-    @property
-    def rootElement(self):
-        return self.__rootElement
-    # @rootElement.setter
-    # def rootElement(self, value):
-    #     self._rootElement = value
 
     @property
     def versionNumber(self):
@@ -71,8 +67,9 @@ class Config(object):
         return self.__bazookaAnalyticsConnString        
 
 
-    def setPaths(self):
-        _paths_node = self.rootElement.find('paths')
+    def setPaths(self, pathsNode):
+
+        _paths_node = pathsNode
     
         _model_path = _paths_node.find('modelPath').text
         self.__modelPath = '' if _model_path is None else _model_path
@@ -83,8 +80,8 @@ class Config(object):
         _carrierDataPath = _paths_node.find('carrierDataPath').text
         self.__carrierDataPath = '' if _carrierDataPath is None else _carrierDataPath
 
-    def setConnectionStrings(self):
-        _connStringsNode = self.rootElement.find('connectionStrings')
+    def setConnectionStrings(self, connStringsNode):
+        _connStringsNode = connStringsNode
         
         _researchScienceConnString = _connStringsNode.find('researchScience').text
         _bazookaReplConnString = _connStringsNode.find('bazookaRepl').text
@@ -93,6 +90,7 @@ class Config(object):
         self.__researchScienceConnString = '' if _researchScienceConnString is None else _researchScienceConnString
         self.__bazookaReplConnString = '' if _bazookaReplConnString is None else _bazookaReplConnString
         self.__bazookaAnalyticsConnString = '' if _bazookaAnalyticsConnString is None else _bazookaAnalyticsConnString
+    
     
 try:
     CONFIG = Config(ROOT_ELEMENT, VERSION_FILE.read().strip())

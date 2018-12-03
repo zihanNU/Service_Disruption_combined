@@ -10,9 +10,14 @@ class QueryTest(unittest.TestCase):
     now = datetime.datetime.now()
 
     def test_query_constructor(self):
-        queryEngine = engines.QueryEngine("researchScienceConnStr", "bazAnalyticsConnStr")
-        self.assertEqual("researchScienceConnStr", queryEngine.researchScienceConnectionString, "ResearchScienceConnString Should Equal value")
-        self.assertEqual("bazAnalyticsConnStr", queryEngine.bazookaAnalyticsConnString, "bazookaAnalyticsConnString Should Equal input value")
+        researchScienceConnStr = "research.science.conn.string"
+        bazAnalyticsString = "baz.analytics.conn.string"
+        
+        queryEngine = engines.QueryEngine(researchScienceConnStr, bazAnalyticsString)
+
+        self.assertEqual(researchScienceConnStr, queryEngine.researchScienceConnectionString, "ResearchScienceConnString Should Equal value")
+        self.assertEqual(bazAnalyticsString, queryEngine.bazookaAnalyticsConnString, "bazookaAnalyticsConnString Should Equal input value")
+
 
     def test_query_get_carrier_histload_noresults_returns_zeros(self):
         carrierId = 12345
@@ -29,6 +34,7 @@ class QueryTest(unittest.TestCase):
                 actual = queryEngine.get_carrier_histload(carrierId, startDate, endDate)
             self.assertEqual(0, actual['flag'])
             self.assertEqual(0, actual['histload'])
+
 
     def test_query_get_carrier_histload_results_returns_data(self):
         carrierId = 12345
@@ -48,6 +54,7 @@ class QueryTest(unittest.TestCase):
                 actual = queryEngine.get_carrier_histload(carrierId, startDate, endDate)
             self.assertEqual(1, actual['flag'])
 
+
     def test_query_get_truckinsurance(self):
 
         expectedCargoLimit = 123.45
@@ -60,6 +67,7 @@ class QueryTest(unittest.TestCase):
             queryEngine = engines.QueryEngine("researchScienceConnStr", "bazAnalyticsConnStr")
             actualCargoLimit = queryEngine.get_truckinsurance(1234)
             self.assertEqual(expectedCargoLimit, actualCargoLimit)
+
 
     def test_query_get_corridorinfo(self):
 
@@ -76,6 +84,7 @@ class QueryTest(unittest.TestCase):
                 actual = queryEngine.get_corridorinfo()
             self.assertEqual(expected["loadId"], actual["loadId"][0])
 
+
 class MockPyodbcConnection:
 
     def __init__(self, mockPyodbcCursor = None):
@@ -84,6 +93,7 @@ class MockPyodbcConnection:
     def cursor(self):
         return self.__mockPyodbcCursor
 
+
 class MockPyodbcCursor:
 
     def __init__(self, mockDataSet = None):
@@ -91,6 +101,7 @@ class MockPyodbcCursor:
 
     def execute(self, *args):
         return self.__mockDataSet
+
 
 class MockPyodbcDataSet:
 
