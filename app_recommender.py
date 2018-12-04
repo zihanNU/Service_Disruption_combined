@@ -278,7 +278,7 @@ def indiv_recommender(carrier,newloads,loadList):
     carrierID = int(carrier.carrierID)
     newload_ode = get_odelist_new(newloads)
 
-    carriers = sorted(set(loadList.carrierID.tolist()))
+    #carriers = sorted(set(loadList.carrierID.tolist()))
     histode = get_odelist_hist(loadList)
     # odelist = set(histode)   # set is not useful for the object list
     odelist = histode.drop_duplicates(subset=['origin', 'destination', 'equipment'])
@@ -326,26 +326,41 @@ def dynamic_input(newloads_df,carrier):
     # newloads_df['puGap'] = gap
     # newloads_df['totalDH'] = originDH+destDH
     if  carrier.originLat is not None and carrier.originLon is not None:
+        carlat=float(carrier.originLat)
+        carlon=float(carrier.originLon)
         newloads_ODH= {'originDH': newloads_df.apply(lambda row: geopy.distance.vincenty((row.originLat, row.originLon), (
-            float(carrier.originLat), float(carrier.originLon))).miles, axis=1)}
-
+            carlat, carlon)).miles, axis=1)}
         newloads_df.update(pd.DataFrame(newloads_ODH))
+
+        #newloads_ODH= {'originDH': newloads_df.apply(lambda row: math.sqrt((row.originLat-carlat)**2+(row.originLon-carlon)**2)+69.1, axis=1)}
+        #newloads_df.update(pd.DataFrame(newloads_ODH))
+
+        #newloads_df['originDH'] = np.sqrt((newloads_df['originLat'] - carlat)**2 + (newloads_df['originLon'] - carlon)**2) * 69.1
+        #print (newloads_ODH['originDH']-newloads_df['originDH'])
+        #69.1 is 1 degree distance in miles
     if  carrier.destLat is not None and carrier.destLon is not None:
-        newloads_DDH= {'destDH': newloads_df.apply(lambda row: geopy.distance.vincenty((row.originLat, row.originLon), (
-            float(carrier.destLat), float(carrier.destLon))).miles, axis=1)}
+        carlat=float(carrier.destLat)
+        carlon=float(carrier.destLon)
+        newloads_DDH= {'destDH': newloads_df.apply(lambda row: geopy.distance.vincenty((row.destinationLat, row.destinationLon), (
+            carlat, carlon)).miles, axis=1)}
         newloads_df.update(pd.DataFrame(newloads_DDH))
     if carrier.EmptyDate  is not None:
         if carrier.originLat is not None and carrier.originLon is not None:
-            newloads_puGap={'puGap': newloads_df.apply(lambda row: pu_Gap(pd.Timestamp(row.pu_appt), pd.Timestamp(carrier.EmptyDate),row.originDH/40.0),
-                                    axis=1)}
+
+            newloads_df['puGap'] = (pd.to_datetime(carrier.EmptyDate) - pd.to_datetime(newloads_df["pu_appt"])).astype(
+                'timedelta64[h]') - newloads_df["originDH"] / 40.0
+            # newloads_puGap={'puGap': newloads_df.apply(lambda row: pu_Gap(pd.Timestamp(row.pu_appt), pd.Timestamp(carrier.EmptyDate),row.originDH/40.0),
+            #                         axis=1)}
         else:
-            newloads_puGap = {'puGap': newloads_df.apply(
-                lambda row: pu_Gap(pd.Timestamp(row.pu_appt), pd.Timestamp(carrier.EmptyDate), 0),
-                axis=1)}
-        newloads_df.update(pd.DataFrame(newloads_puGap))
+            newloads_df['puGap'] = pd.Timestamp(carrier.EmptyDate) - pd.Timestamp(newloads_df["pu_appt"]).astype(
+                'timedelta64[h]')
+            # newloads_puGap = {'puGap': newloads_df.apply(
+            #     lambda row: pu_Gap(pd.Timestamp(row.pu_appt), pd.Timestamp(carrier.EmptyDate), 0),
+            #     axis=1)}
+        # newloads_df.update(pd.DataFrame(newloads_puGap))
 
-    newloads_df['totalDH'] = newloads_df.apply(lambda row: row.originDH + row.destDH, axis=1)
-
+        # newloads_df['totalDH'] = newloads_df.apply(lambda row: row.originDH + row.destDH, axis=1)
+    newloads_df['totalDH'] = newloads_df['originDH'] + newloads_df['destDH']
     return newloads_df      
 
 def reasoning(results_df):
@@ -421,30 +436,20 @@ def recommender( carrier_load,trucks_df):
     originDH_default = 250  # get radius
     destDH_default = 300
     gap_default=48
-    date1_default = now.strftime("%Y-%m-%d")
-    date2_default = (datetime.timedelta(1) + now).strftime("%Y-%m-%d")
+    #date1_default = now.strftime("%Y-%m-%d")
+    #date2_default = (datetime.timedelta(1) + now).strftime("%Y-%m-%d")
     #corridor_info = pd.read_csv("corridor_margin.csv")  # should be saved somewhere
 
     ##initialization of the final results
     #results_sort_df = pd.DataFrame(columns=['loadID', 'Reason', 'Score'])
     result_json = {'Loads': [], "ver": CONFIG.versionNumber}
     carrier = trucks_df.iloc[0]
-    newloadsall_df = QUERY.get_newload(date1_default,date2_default)
-    ### should deal with if equipmenttype is a string carrier['EquipmentType'].fillna('', inplace=True)
-    ###This part is for new api input
-    
-    # if any date will be put in, change the variables.
-    # if date1 is not None and date2 is not None:
-    #     Get_newload(date1,date2)
-    # elif date2 is None:
-    #     date2=date1 + 1
-    #     Get_newload(date1,date2)
-    # else:
-    #     Get_newload()
+    newloads_df = QUERY.get_newload(carrier.originLat,carrier.originLon,carrier.cargolimit)
 
-    newloads_df = newloadsall_df[(newloadsall_df.value <= float(carrier.cargolimit))
-                                & [carrier.EquipmentType in equip for equip in newloadsall_df.equipment]
-                                & (newloadsall_df.equipmentlength <= float(carrier.EquipmentLength))]
+
+    #newloads_df = newloadsall_df[(newloadsall_df.value <= float(carrier.cargolimit))
+    #                            & [carrier.EquipmentType in equip for equip in newloadsall_df.equipment]
+    #                            & (newloadsall_df.equipmentlength <= float(carrier.EquipmentLength))]
 
     newloads_df=filter_newloads(carrier, newloads_df,carrier_load)
 
@@ -523,8 +528,7 @@ def search():
         if not carrierID.isdigit():
             raise ValueError("carrierID parameter must be assigned")
         truck['cargolimit'] = QUERY.get_truckinsurance(carrierID)
-        carrier_load = QUERY.get_carrier_histload(carrierID,(datetime.timedelta(-90-7) + now).strftime("%Y-%m-%d"),
-	                                         (datetime.timedelta(-7) + now).strftime("%Y-%m-%d"))
+        carrier_load = QUERY.get_carrier_histload(carrierID)
                                             
         carriers = []
         carriers.append(truck)
