@@ -56,7 +56,7 @@ class QueryEngine:
         row = cursor.execute("{call [Research].[spCarrier_GetCargoLimitWithDefault](?)}", (carrierID,)).fetchone()
         return row.CargoLimit     
 
-    def get_truckinsurance(self, carrierID): #just for Zihan test, when Zihan do not have bazookastaging access
+    def get_truckinsurance_Zihan(self, carrierID): #just for Zihan test, when Zihan do not have bazookastaging access
         cn = pyodbc.connect('DRIVER={SQL Server};SERVER=ANALYTICSPROD;DATABASE=Bazooka;trusted_connection=true')
         query = """
                select 
