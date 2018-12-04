@@ -72,6 +72,7 @@ class QueryEngine:
         trucks_df=truck.drop_duplicates()
         return trucks_df   
 
+
     def get_newload(self, startDate,endDate):
         cn = pyodbc.connect(self.__bazookaReplConnString)
         sql = "{call Research.spLoad_GetNonUPSActiveLoadsForResearchMatching(?,?)}"
