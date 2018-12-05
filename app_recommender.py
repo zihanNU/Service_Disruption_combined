@@ -1,5 +1,4 @@
 from flask import Flask, jsonify, request
-import pyodbc
 import pandas as pd
 from scipy import spatial
 import geopy.distance

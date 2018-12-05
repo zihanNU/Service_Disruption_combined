@@ -39,7 +39,7 @@ class QueryTest(unittest.TestCase):
             with patch("pandas.read_sql") as mock_pandas_read_sql:
                 my_df = tpd.DataFrame(columns=['loadId'])
                 mock_pandas_read_sql.return_value = my_df 
-                actual = queryEngine.get_carrier_histload(carrierId, startDate, endDate)
+                actual = queryEngine.get_carrier_histload(carrierId)
             self.assertEqual(0, actual['flag'])
             self.assertEqual(0, actual['histload'])
 
@@ -59,7 +59,7 @@ class QueryTest(unittest.TestCase):
                 my_df.loc[len(my_df)] = expected
 
                 mock_pandas_read_sql.return_value = my_df 
-                actual = queryEngine.get_carrier_histload(carrierId, startDate, endDate)
+                actual = queryEngine.get_carrier_histload(carrierId)
                 self.assert_proper_connection(mock_connect, _researchScienceConnectionString)
             self.assertEqual(1, actual['flag'])
 
@@ -114,18 +114,42 @@ class QueryTest(unittest.TestCase):
                 self.assertEqual(5213, actual["carrierID"][0], "expected the proper carrierID")
 
 
-    def test_get_newload(self):
+    def test_get_newload_has_carrierlatlong(self):
         mockConnection = MockPyodbcConnection()
+
+        latitude = 44.975
+        longitude = -93.268
+        cargolimit = 75000
+
         with patch("pyodbc.connect") as mock_connect:
-            mock_connect.return_value = mockConnection
-            queryEngine = self.get_queryengine()
-            with patch("pandas.read_sql") as mock_pandas_read_sql:
+             mock_connect.return_value = mockConnection
+             queryEngine = self.get_queryengine()
+             with patch("pandas.read_sql") as mock_pandas_read_sql:
                 my_df = tpd.DataFrame(columns=['loadID'])
                 my_df.loc[0] = {"loadID": 1234567890}
-                mock_pandas_read_sql.return_value = my_df
-                actual = queryEngine.get_newload('11/23/2018', '11/23/2018')
-                self.assert_proper_connection(mock_connect, _bazookaReplConnStr)
+                mock_pandas_read_sql.return_value = my_df          
+                actual = queryEngine.get_newload(latitude, longitude, cargolimit)
+                self.assert_proper_connection(mock_connect, _researchScienceConnectionString)
                 self.assertEqual(1234567890, actual["loadID"][0], "Expected proper loadID returned")
+                self.assertIn("@carrierlon", mock_pandas_read_sql.call_args[1]["sql"], "Expected the @carrierlon parameter in the query")
+
+
+    def test_get_newload_missing_carrierlatlong(self):
+        mockConnection = MockPyodbcConnection()
+
+        latitude = None
+        longitude = None
+        cargolimit = 75000
+
+        with patch("pyodbc.connect") as mock_connect:
+             mock_connect.return_value = mockConnection
+             queryEngine = self.get_queryengine()
+             with patch("pandas.read_sql") as mock_pandas_read_sql:    
+                queryEngine.get_newload(latitude, longitude, cargolimit)
+                self.assertNotIn("@carrierlon", mock_pandas_read_sql.call_args[0][0], "Expected @carrierlon parameter not in the query")
+
+
+
 
     def assert_proper_connection(self, mockConnect, expectedConnectionString):
         """Tests for one call to .connect on the mock connection object, and the proper connection string"""
