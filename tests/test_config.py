@@ -1,4 +1,3 @@
-import unittest
 from config import Config
 from xml.etree.ElementTree import Element, SubElement
 
@@ -13,20 +12,19 @@ def BuildConnectionStringElement():
     return connStringElement
 
 
-class ConfigTest(unittest.TestCase):
+def test_set_connection_strings():
+    element = BuildConnectionStringElement()
+    config = Config(None, "1.0.0")
 
-    def test_setConnectionStrings(self):
-        element = BuildConnectionStringElement()
-        config = Config(None, "1.0.0")
+    researchScienceString = element.find('researchScience').text
+    replicationString = element.find("bazookaRepl").text
+    bazAnalyticsString = element.find('bazookaAnalytics').text
 
-        researchScienceString = element.find('researchScience').text
-        replicationString = element.find("bazookaRepl").text
-        bazAnalyticsString = element.find('bazookaAnalytics').text
+    config.setConnectionStrings(element)
 
-        config.setConnectionStrings(element)
+    assert researchScienceString == config.researchScienceConnString
+    assert replicationString == config.bazookaReplConnString
+    assert bazAnalyticsString == config.bazookaAnalyticsConnString
 
-        self.assertEqual(researchScienceString, config.researchScienceConnString, "ResearchScienceConnString Should Equal value")
-        self.assertEqual(replicationString, config.bazookaReplConnString, "bazookaReplConnString Should Equal input value")
-        self.assertEqual(bazAnalyticsString, config.bazookaAnalyticsConnString, "bazookaAnalyticsConnString Should Equal input value")
 
 
