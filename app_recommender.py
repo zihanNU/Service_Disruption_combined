@@ -351,13 +351,11 @@ def dynamic_input(newloads_df,carrier):
     if carrier.EmptyDate  is not None:
         if carrier.originLat is not None and carrier.originLon is not None:
 
-            newloads_df['puGap'] = (pd.to_datetime(carrier.EmptyDate) - pd.to_datetime(newloads_df["pu_appt"])).astype(
-                'timedelta64[h]') - newloads_df["originDH"] / 40.0
+            newloads_df['puGap'] = (pd.to_datetime(carrier.EmptyDate) - pd.to_datetime(newloads_df["pu_appt"]))/ np.timedelta64(3600, 's') - newloads_df["originDH"] / 40.0
             # newloads_puGap={'puGap': newloads_df.apply(lambda row: pu_Gap(pd.Timestamp(row.pu_appt), pd.Timestamp(carrier.EmptyDate),row.originDH/40.0),
             #                         axis=1)}
         else:
-            newloads_df['puGap'] = pd.Timestamp(carrier.EmptyDate) - pd.Timestamp(newloads_df["pu_appt"]).astype(
-                'timedelta64[h]')
+            newloads_df['puGap'] = (pd.to_datetime(carrier.EmptyDate) - pd.to_datetime(newloads_df["pu_appt"]))/ np.timedelta64(3600, 's')
             # newloads_puGap = {'puGap': newloads_df.apply(
             #     lambda row: pu_Gap(pd.Timestamp(row.pu_appt), pd.Timestamp(carrier.EmptyDate), 0),
             #     axis=1)}
@@ -448,13 +446,16 @@ def recommender( carrier_load,trucks_df):
     #results_sort_df = pd.DataFrame(columns=['loadID', 'Reason', 'Score'])
     result_json = {'Loads': [], "ver": CONFIG.versionNumber}
     carrier = trucks_df.iloc[0]
+    t=TicToc()
+    t.tic()
     newloads_df = QUERY.get_newload(carrier.originLat,carrier.originLon,carrier.cargolimit)
-
+    t.toc()
+    LOGGER.info("loading_newdata:"+str(t.elapsed))
 
     #newloads_df = newloadsall_df[(newloadsall_df.value <= float(carrier.cargolimit))
     #                            & [carrier.EquipmentType in equip for equip in newloadsall_df.equipment]
     #                            & (newloadsall_df.equipmentlength <= float(carrier.EquipmentLength))]
-
+    t.tic()
     newloads_df=filter_newloads(carrier, newloads_df,carrier_load)
 
     # newloads_df = newloadsall_df[
@@ -467,11 +468,14 @@ def recommender( carrier_load,trucks_df):
     newloads_df['destDH'] = destRadius
     newloads_df['puGap'] = gap_default
     newloads_df['totalDH'] = originRadius+destRadius
-
+    t.toc()
+    LOGGER.info( "filter_newdata:"+str(t.elapsed))
     # need dynamic check: if equipment type is an entry, etc.
     if len(newloads_df) > 0:
+        t.tic()
         newloads_df = dynamic_input(newloads_df, carrier)
-
+        t.toc()
+        LOGGER.info("realtime_deadhead:"+str(t.elapsed))
         # need to change, if not null for origin, update origin; if not null for dest, update dest,
         # if not null for date, select date from to.
 
@@ -479,8 +483,10 @@ def recommender( carrier_load,trucks_df):
             (newloads_df.originDH <= originRadius) | (newloads_df.totalDH <= (originRadius+destRadius)) & (newloads_df.puGap <= gap_default)]
 
         if len(newloads_select) > 0:
+            t.tic()
             carrier_load_score = check(carrier_load, newloads_select,carrier)#,corridor_info)
-            # if (len(carrier_load_score) > 0):
+            t.toc()
+            LOGGER.info("scoring:" + str(t.elapsed))
             results_df = pd.DataFrame(carrier_load_score).merge(newloads_select, left_on="loadID", right_on="loadID",
                                                                 how='inner')
 
@@ -531,13 +537,20 @@ def search():
 
         if not carrierID.isdigit():
             raise ValueError("carrierID parameter must be assigned")
+        t=TicToc()
+        t.tic()
         truck['cargolimit'] = QUERY.get_truckinsurance(carrierID)
         carrier_load = QUERY.get_carrier_histload(carrierID)
+        t.toc()
+        LOGGER.info( "truckinsurance_carrierhist:"+str(t.elapsed))
                                             
         carriers = []
+        t.tic()
         carriers.append(truck)
         carrier_df = pd.DataFrame(carriers)
         results=recommender(carrier_load, carrier_df)
+        t.toc()
+        LOGGER.info("totalrecommender:" + str(t.elapsed))
         return jsonify({'Loads':results, "ver": CONFIG.versionNumber} )
 
     except Exception as ex:
