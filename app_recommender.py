@@ -84,7 +84,9 @@ def multi_makeMatrix(x,y,z=[]):
                 kpiMatrix.append(carrier_ode_loads_kpi_std(i,j,loads,np.mean(np.asarray(std1)),np.std(np.asarray(std1))))
     return  kpiMatrix, odlist
 
-def makeMatrix(x,y,z):  #x is the hist load list, y is the unique ode list; x and y are pd.df structure
+
+def makeMatrix(x,y,z):
+    """x is the hist load list, y is the unique ode list; x and y are pd.df structure"""
     kpiMatrix = []
     odlist=[]
     for j in y.itertuples():
@@ -99,6 +101,7 @@ def makeMatrix(x,y,z):  #x is the hist load list, y is the unique ode list; x an
             kpiMatrix.append(carrier_ode_loads_kpi_std(z,j,loads,np.mean(np.asarray(std1)),np.std(np.asarray(std1))))
     return  kpiMatrix, odlist
    
+
 def get_odelist_hist(loadlist):
     odelist = []
     for x in loadlist.itertuples():
@@ -109,12 +112,14 @@ def get_odelist_hist(loadlist):
     odelist_df=pd.DataFrame(odelist)
     return odelist_df  
     
+
 def get_odelist_new(loadlist):
     odelist = []
     for x in loadlist.itertuples():
         odelist.append({'origin':x.originCluster,'destination':x.destinationCluster,'corridor':x.corridor,'equipment':x.equipment})
     odelist_df=pd.DataFrame(odelist)
     return odelist_df
+
 
 def find_ode(kpilist, load, odlist ):
     matchlist=[]
