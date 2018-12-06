@@ -60,9 +60,9 @@ class carrier_ode_loads_kpi_std:   # ode here is a pd.df with 4 features, o, d, 
         self.std=std
 
 
-
-def multi_makeMatrix(x,y,z=[]):  #x is the hist load list, y is the unique ode list; x and y are pd.df structure
-    # this function is defined for multiple carriers. if we have only 1, no need to set Z as a set
+def multi_makeMatrix(x,y,z=[]):  
+    """x is the hist load list, y is the unique ode list; x and y are pd.df structure
+    this function is defined for multiple carriers. if we have only 1, no need to set Z as a set"""
     kpiMatrix = []
     odlist=[]
     for i in z:

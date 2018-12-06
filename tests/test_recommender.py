@@ -23,6 +23,25 @@ def test_get_odelist_hist():
     assert _corridor == actual["corridor"][0]
     assert _equipment == actual["equipment"][0]
     assert _origin_count == actual["origin_count"][0]
-    assert _origin_count == actual["origin_max"][0]
+    assert _origin_count == actual["origin_max"][0] #there is a bug in the original code here.
     assert _dest_count == actual["dest_count"][0]
     assert _dest_max == actual["dest_max"][0]
+
+
+def test_get_odelist_new():
+    my_df = tpd.DataFrame(columns=['originCluster', 'destinationCluster', 'corridor', 'equipment'])
+
+    _origin = "Nashville Region"
+    _destination = "South GA Region"
+    _corridor = "Atlanta Region-South East AL Region"
+    _equipment = "Equip"
+
+    my_df.loc[0] = { "originCluster": _origin, "destinationCluster" : _destination, 
+                        "corridor" : _corridor, "equipment" : _equipment}
+
+    actual = app_recommender.get_odelist_new(my_df)
+
+    assert _origin == actual["origin"][0]
+    assert _destination == actual["destination"][0]
+    assert _corridor == actual["corridor"][0]
+    assert _equipment == actual["equipment"][0]
