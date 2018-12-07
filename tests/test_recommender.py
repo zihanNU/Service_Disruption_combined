@@ -45,3 +45,7 @@ def test_get_odelist_new():
     assert _destination == actual["destination"][0]
     assert _corridor == actual["corridor"][0]
     assert _equipment == actual["equipment"][0]
+
+
+def test_epic_fail():
+    assert True == False
