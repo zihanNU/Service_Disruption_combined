@@ -47,5 +47,27 @@ def test_get_odelist_new():
     assert _equipment == actual["equipment"][0]
 
 
-def test_epic_fail():
-    assert True == False
+def test_api_json_output():
+
+    my_df = tpd.DataFrame(columns=['loadID', 'Reason', 'Score'])
+    my_df.loc[0] = {"loadID" : tpd.Series(1234567), "Reason": "Because I", "Score" : tpd.Series("123")}
+    my_df.loc[1] = {"loadID" : tpd.Series(9876543), "Reason": "Sayso", "Score" : tpd.Series(987.654)}
+    my_df.loc[2] = {"loadID" : tpd.Series(5555555), "Reason": "dude", "Score" : tpd.Series(42.1)}
+    
+    actual = app_recommender.api_json_output(my_df)
+    assert type(actual) is list
+    assert 3 == len(actual)
+    
+    assert actual[0]["loadid"] == 1234567
+    assert actual[0]["Reason"] == "Because I"
+    assert actual[0]["Score"] == 123
+
+    assert actual[1]["loadid"] == 9876543
+    assert actual[1]["Reason"] == "Sayso"
+    assert actual[1]["Score"] == 987    
+
+    assert actual[2]["loadid"] == 5555555
+    assert actual[2]["Reason"] == "dude"
+    assert actual[2]["Score"] == 42        
+
+    
