@@ -314,7 +314,7 @@ def indiv_recommender(carrier,newloads,loadList):
     return (carrier_load_score)
 
 
-def score_DH(DH,radius ):
+def score_deadhead(DH,radius ):
     score=(radius-np.array(DH))/radius*100
     score_check=[min(max(0,a),100) for a in score]
     return  score_check
@@ -495,10 +495,10 @@ def recommender( carrier_load,trucks_df):
 
             results_df['corrdor_margin_perc'].fillna(0, inplace=True)
             # results_df.merge(newloads_df,left_on="loadID",right_on="loadID",how='inner')
-            results_df['ODH_Score'] = score_DH(results_df['originDH'].tolist(), originDH_default)
+            results_df['ODH_Score'] = score_deadhead(results_df['originDH'].tolist(), originDH_default)
             results_df['totalDH'] = results_df['originDH'] + results_df['destDH']
-            results_df['totalDH_Score'] = score_DH(results_df['totalDH'].tolist(), (originDH_default + destDH_default))
-            results_df['puGap_Score'] = score_DH(abs(results_df['puGap']).tolist(),gap_default )
+            results_df['totalDH_Score'] = score_deadhead(results_df['totalDH'].tolist(), (originDH_default + destDH_default))
+            results_df['puGap_Score'] = score_deadhead(abs(results_df['puGap']).tolist(),gap_default )
             results_df['margin_Score'] = results_df['estimated_margin%'] * 0.3 + results_df['margin_perc'] * 0.7 \
                                         - results_df['corrdor_margin_perc']
             # margin score needs to be verified

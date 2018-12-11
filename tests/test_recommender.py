@@ -70,4 +70,16 @@ def test_api_json_output():
     assert actual[2]["Reason"] == "dude"
     assert actual[2]["Score"] == 42        
 
-    
+def test_score_deadhead():
+    """
+        Test the function that scores deadhead
+        Lower deadhead creates higher scores
+    """
+    my_list = [223.5, 187.1, 18.0, 66]
+    result = app_recommender.score_deadhead(my_list, 250)
+
+    assert 11 == round(result[0])
+    assert 25 == round(result[1])
+    assert 93 == round(result[2])
+    assert 74 == round(result[3])
+
