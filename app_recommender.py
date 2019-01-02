@@ -128,9 +128,9 @@ def get_odelist_new(loadlist):
     #     odelist.append({'origin':x.originCluster,'destination':x.destinationCluster,'corridor':x.corridor,'equipment':x.equipment})
     # odelist_df=pd.DataFrame(odelist)
 
-    odelist_df=loadlist[['originCluster','destinationCluster','corridor']]
+    odelist_df=loadlist[['originCluster','destinationCluster','corridor','equipment']]
     #odelist_df=odelist_df.drop_duplicates(odelist_df)
-    odelist_df.columns = ['origin', 'destination', 'corridor']
+    odelist_df.columns = ['origin', 'destination', 'corridor','equipment']
     return odelist_df
 
 def find_ode(kpilist, load, odlist ):
