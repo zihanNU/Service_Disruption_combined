@@ -122,6 +122,7 @@ def get_odelist_hist(loadlist):
     
 
 def get_odelist_new(loadlist):
+    #this function is developped to use in the future.
     # odelist = []
     # for x in loadlist.itertuples():
     #     odelist.append({'origin':x.originCluster,'destination':x.destinationCluster,'corridor':x.corridor,'equipment':x.equipment})
@@ -159,6 +160,22 @@ def find_ode(kpilist, load, odlist ):
                  perc= perc + [weight] * len(x.loads)
     vol = len(matchlist)
     return  matchlist, perc, vol
+
+def find_ode_noweight(kpilist, load, odlist):
+    # weight from counts, used in similarity and histscoring
+    matchlist = pd.DataFrame()
+    vol = 0
+    if load.corridor in odlist:
+        loc = odlist.index(load.corridor)
+        x = kpilist[loc]
+        matchlist = x.loads
+        vol = len(matchlist)
+    else:
+        for x in kpilist:
+            # if x.carrier not in carriers and (x.ode.origin == load.origin or x.ode.destination==load.destination) and x.ode.equipment ==load.equipment:
+            if x.ode.origin == load.origin or x.ode.destination == load.destination:
+                matchlist = matchlist.append(x.loads)
+    return matchlist, vol
 
 def similarity(loadlist, newload, weight):
     carrier_scores = []
@@ -288,6 +305,7 @@ def indiv_recommender(carrier,newloads,loadList):
  #       newload=newloads.iloc[i]
 
         #new_ode=get_odelist_new(newload)
+        #matchlist,   weight, corridor_vol = find_ode_noweight(kpiMatrix,newload,kpi_odlist )
         matchlist,   weight, corridor_vol = find_ode(kpiMatrix,newload,kpi_odlist )
         if len(matchlist) > 0:
             score = similarity(matchlist, newload, weight)
