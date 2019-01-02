@@ -127,9 +127,9 @@ def get_odelist_new(loadlist):
     #     odelist.append({'origin':x.originCluster,'destination':x.destinationCluster,'corridor':x.corridor,'equipment':x.equipment})
     # odelist_df=pd.DataFrame(odelist)
 
-    odelist_df=loadlist[['originCluster','destinationCluster','corridor','equipment']]
+    odelist_df=loadlist[['originCluster','destinationCluster','corridor']]
     #odelist_df=odelist_df.drop_duplicates(odelist_df)
-    odelist_df.columns = ['origin', 'destination', 'corridor','equipment']
+    odelist_df.columns = ['origin', 'destination', 'corridor']
     return odelist_df
 
 def find_ode(kpilist, load, odlist ):
@@ -272,7 +272,7 @@ def indiv_recommender(carrier,newloads,loadList):
     """once there is any historical information for given carrier, use historical info to calculate the scores(hist preference)"""
 
     carrierID = int(carrier.carrierID)
-    newload_ode = get_odelist_new(newloads)
+    #newload_ode = get_odelist_new(newloads)
 
     #carriers = sorted(set(loadList.carrierID.tolist()))
     histode = get_odelist_hist(loadList)
@@ -283,10 +283,12 @@ def indiv_recommender(carrier,newloads,loadList):
     kpiMatrix, kpi_odlist = makeMatrix(loadList, histode, carrierID)
     carrier_load_score = []
 
-    for i in range(0, len(newloads)):
-        newload=newloads.iloc[i]
-        new_ode=newload_ode.iloc[i]
-        matchlist,   weight, corridor_vol = find_ode(kpiMatrix,new_ode,kpi_odlist )
+   # for i in range(0, len(newloads)):
+    for newload in newloads.itertuples():
+ #       newload=newloads.iloc[i]
+
+        #new_ode=get_odelist_new(newload)
+        matchlist,   weight, corridor_vol = find_ode(kpiMatrix,newload,kpi_odlist )
         if len(matchlist) > 0:
             score = similarity(matchlist, newload, weight)
             score['desired_OD'] = 100 if corridor_vol > min(len(loadList) * 0.1, 10) else 0
