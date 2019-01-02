@@ -52,12 +52,12 @@ class originDestinationEquipment:
         self.equipment=equipment
 
 class carrier_ode_loads_kpi_std:   # ode here is a pd.df with 4 features, o, d, corridor and equip.
-    def  __init__(self,carrier,ode,loads,kpi,std):
+    def  __init__(self,carrier,ode,loads):#,kpi,std):
         self.carrier=carrier
         self.ode=ode
         self.loads=loads
-        self.kpi=kpi
-        self.std=std
+       # self.kpi=kpi
+       # self.std=std
 
 
 def multi_makeMatrix(x,y,z=[]):  
@@ -85,93 +85,102 @@ def multi_makeMatrix(x,y,z=[]):
     return  kpiMatrix, odlist
 
 
-def makeMatrix(x,y,z):
-    """x is the hist load list, y is the unique ode list; x and y are pd.df structure"""
+def makeMatrix(x,y,z):  #x is the hist load list, y is the unique ode list; x and y are pd.df structure
     kpiMatrix = []
     odlist=[]
+    # for j in y.itertuples():
+    #     loads=[]
+    #     std1=[]
+    #     selectedloads=x[(x['carrierID'] == z) & (x['corridor']==j.corridor)]   ### Check this capital or little c
+    #     for k in  selectedloads.itertuples():
+    #         loads.append(k)
+    #         std1.append(k.kpiScore)
+    #     if (len(selectedloads)>0):
+    #         odlist.append(j.corridor)
+    #         kpiMatrix.append(carrier_ode_loads_kpi_std(z,j,loads,np.mean(np.asarray(std1)),np.std(np.asarray(std1))))
     for j in y.itertuples():
-        loads=[]
-        std1=[]
-        selectedloads=x[(x['carrierID'] == z) & (x['corridor']==j.corridor)]   ### Check this capital or little c
-        for k in  selectedloads.itertuples():
-            loads.append(k)
-            std1.append(k.kpiScore)
-        if (len(selectedloads)>0):
-            odlist.append(j.corridor)
-            kpiMatrix.append(carrier_ode_loads_kpi_std(z,j,loads,np.mean(np.asarray(std1)),np.std(np.asarray(std1))))
-    return  kpiMatrix, odlist
+        #loads=[]
+        #std1=[]
+        selectedloads=x[x['corridor']==j.corridor]   ### Check this capital or little c
+        kpiMatrix.append(carrier_ode_loads_kpi_std(z, j, selectedloads))
+        odlist.append(j.corridor)
+    return  kpiMatrix,odlist
    
 
 def get_odelist_hist(loadlist):
-    odelist = []
-    for x in loadlist.itertuples():
-        # odelist.append({'origin':x.originCluster,'destination':x.destinationCluster,'corridor':x.corridor,'equipment':x.equipment,'corridor_count':x.corridor_count,'corridor_max':x.corridor_max,'origin_count':x.origin_count,'origin_max':x.origin_count,'dest_count':x.dest_count,'dest_max':x.dest_max
-        #                 })
-        odelist.append({'origin':x.originCluster,'destination':x.destinationCluster,'corridor':x.corridor,'equipment':x.equipment,'origin_count':x.origin_count,'origin_max':x.origin_count,'dest_count':x.dest_count,'dest_max':x.dest_max
-                        })
-    odelist_df=pd.DataFrame(odelist)
-    return odelist_df  
+    # odelist = []
+    # for x in loadlist.itertuples():
+    #     # odelist.append({'origin':x.originCluster,'destination':x.destinationCluster,'corridor':x.corridor,'equipment':x.equipment,'corridor_count':x.corridor_count,'corridor_max':x.corridor_max,'origin_count':x.origin_count,'origin_max':x.origin_count,'dest_count':x.dest_count,'dest_max':x.dest_max
+    #     #                 })
+    #      odelist.append({'origin':x.originCluster,'destination':x.destinationCluster,'corridor':x.corridor,'equipment':x.equipment,'origin_count':x.origin_count,'origin_max':x.origin_max,'dest_count':x.dest_count,'dest_max':x.dest_max
+    #                      })
+    # odelist_df=pd.DataFrame(odelist)
+    odelist_df=loadlist[['originCluster','destinationCluster','corridor','equipment','origin_count','origin_max','dest_count','dest_max']]
+    odelist_df.columns = ['origin', 'destination', 'corridor','equipment','origin_count','origin_max','dest_count','dest_max']
+    odelist = odelist_df.drop_duplicates(subset=['origin', 'destination', 'equipment'])
+    return odelist
     
 
 def get_odelist_new(loadlist):
-    odelist = []
-    for x in loadlist.itertuples():
-        odelist.append({'origin':x.originCluster,'destination':x.destinationCluster,'corridor':x.corridor,'equipment':x.equipment})
-    odelist_df=pd.DataFrame(odelist)
+    #this function is developped to use in the future.
+    # odelist = []
+    # for x in loadlist.itertuples():
+    #     odelist.append({'origin':x.originCluster,'destination':x.destinationCluster,'corridor':x.corridor,'equipment':x.equipment})
+    # odelist_df=pd.DataFrame(odelist)
+
+    odelist_df=loadlist[['originCluster','destinationCluster','corridor']]
+    #odelist_df=odelist_df.drop_duplicates(odelist_df)
+    odelist_df.columns = ['origin', 'destination', 'corridor']
     return odelist_df
 
-
 def find_ode(kpilist, load, odlist ):
-    matchlist=[]
-    #matchindex=[]
+    matchlist=pd.DataFrame()
     perc=[]
-    #carriers=[]
-    vol=0
-
     if load.corridor in odlist:
         loc=odlist.index(load.corridor)
         x=kpilist[loc]
-        if  x.ode.equipment ==load.equipment :
-            weight=1.0
-        else:
-            weight=0.9
-        matchlist.append(x.loads)
-        #matchindex.append(kpilist.index(x))
-        perc.append(weight)
-        vol=len(matchlist)
-
+        weight = 1.0
+        matchlist=x.loads
+        perc=[weight] * len(matchlist)
     else:
         for x in kpilist:
         #if x.carrier not in carriers and (x.ode.origin == load.origin or x.ode.destination==load.destination) and x.ode.equipment ==load.equipment:
             if x.ode.origin == load.origin or x.ode.destination == load.destination:
-                matchlist.append(x.loads)
-                #matchindex.append(kpilist.index(x))
+                 matchlist=matchlist.append(x.loads)
 
-                if x.ode.origin_max>0:
-                    origin_weight= x.ode.origin_count/x.ode.origin_max
-                else:
-                    origin_weight=0
-                if x.ode.dest_max>0:
-                    dest_weight=x.ode.dest_count/x.ode.dest_max
-                else:
-                    dest_weight=0
-                weight= 0.9*max(origin_weight,dest_weight)
-                perc.append(weight)
-
-    if len(matchlist)>0:   #merge match list, if we find mutiple matches for either origin cluster or destination cluster
-        matchlist_merge=[]
-        perc_merge=[]
-        for i in range(0,len(matchlist)):
-            for j in range(0,len(matchlist[i])):
-                matchlist_merge.append(matchlist[i][j])
-                perc_merge.append(perc[i])
-        return matchlist_merge,perc_merge, vol
+                 if x.ode.origin_max>0:
+                     origin_weight= x.ode.origin_count/x.ode.origin_max
+                 else:
+                     origin_weight=0
+                 if x.ode.dest_max>0:
+                     dest_weight=x.ode.dest_count/x.ode.dest_max
+                 else:
+                     dest_weight=0
+                 weight= max(origin_weight,dest_weight)
+                 perc= perc + [weight] * len(x.loads)
+    vol = len(matchlist)
     return  matchlist, perc, vol
+
+def find_ode_noweight(kpilist, load, odlist):
+    # weight from counts, used in similarity and histscoring
+    matchlist = pd.DataFrame()
+    vol = 0
+    if load.corridor in odlist:
+        loc = odlist.index(load.corridor)
+        x = kpilist[loc]
+        matchlist = x.loads
+        vol = len(matchlist)
+    else:
+        for x in kpilist:
+            # if x.carrier not in carriers and (x.ode.origin == load.origin or x.ode.destination==load.destination) and x.ode.equipment ==load.equipment:
+            if x.ode.origin == load.origin or x.ode.destination == load.destination:
+                matchlist = matchlist.append(x.loads)
+    return matchlist, vol
 
 def similarity(loadlist, newload, weight):
     carrier_scores = []
     for i in range (0,len(loadlist)):
-        load = loadlist[i]
+        load = loadlist.iloc[i]
         ori_dist = geopy.distance.vincenty((newload.originLat, newload.originLon),
                                         (load.originLat, load.originLon)).miles
         destination_dist = geopy.distance.vincenty((newload.destinationLat, newload.destinationLon),
@@ -280,21 +289,24 @@ def indiv_recommender(carrier,newloads,loadList):
     """once there is any historical information for given carrier, use historical info to calculate the scores(hist preference)"""
 
     carrierID = int(carrier.carrierID)
-    newload_ode = get_odelist_new(newloads)
+    #newload_ode = get_odelist_new(newloads)
 
     #carriers = sorted(set(loadList.carrierID.tolist()))
     histode = get_odelist_hist(loadList)
     # odelist = set(histode)   # set is not useful for the object list
-    odelist = histode.drop_duplicates(subset=['origin', 'destination', 'equipment'])
+    #odelist = histode.drop_duplicates(subset=['origin', 'destination', 'equipment'])
 
     #kpiMatrix,kpi_odlist = makeMatrix(loadList, odelist, carriers)
-    kpiMatrix, kpi_odlist = makeMatrix(loadList, odelist, carrierID)
+    kpiMatrix, kpi_odlist = makeMatrix(loadList, histode, carrierID)
     carrier_load_score = []
 
-    for i in range(0, len(newloads)):
-        newload=newloads.iloc[i]
-        new_ode=newload_ode.iloc[i]
-        matchlist,   weight, corridor_vol = find_ode(kpiMatrix,new_ode,kpi_odlist )
+   # for i in range(0, len(newloads)):
+    for newload in newloads.itertuples():
+ #       newload=newloads.iloc[i]
+
+        #new_ode=get_odelist_new(newload)
+        #matchlist,   weight, corridor_vol = find_ode_noweight(kpiMatrix,newload,kpi_odlist )
+        matchlist,   weight, corridor_vol = find_ode(kpiMatrix,newload,kpi_odlist )
         if len(matchlist) > 0:
             score = similarity(matchlist, newload, weight)
             score['desired_OD'] = 100 if corridor_vol > min(len(loadList) * 0.1, 10) else 0
