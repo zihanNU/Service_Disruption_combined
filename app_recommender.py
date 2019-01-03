@@ -122,7 +122,7 @@ def get_odelist_hist(loadlist):
     
 
 def get_odelist_new(loadlist):
-    #this function is developped to use in the future.
+    """this function is developped to use in the future."""
     # odelist = []
     # for x in loadlist.itertuples():
     #     odelist.append({'origin':x.originCluster,'destination':x.destinationCluster,'corridor':x.corridor,'equipment':x.equipment})
