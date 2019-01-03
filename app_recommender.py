@@ -415,8 +415,8 @@ def api_json_output(results_df):
 
 
 def filter_newloads(carrier,newloads_df,carrier_load):
-    ## add a condition to filter the corridors that this carrier is interested in in the history
-    ## will extend this ode with search history and DOT inspection data
+    """add a condition to filter the corridors that this carrier is interested in in the history
+    will extend this ode with search history and DOT inspection data"""
     if carrier.originLat is None or carrier.originLon is None:
         trucks_corridor = QUERY.get_trucksearch(carrier.carrierID)
         newloads_df1 = []
