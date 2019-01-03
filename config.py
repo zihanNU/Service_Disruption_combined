@@ -3,7 +3,7 @@ import xml.etree.ElementTree
 
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 CONFIG_FILE = os.path.join(DIR_PATH, 'app_recommender.config')
-VERSION_FILE = open('MatchingResearch.Api.version', 'r', encoding='UTF-16')
+VERSION_FILE = open('MatchingResearch.Api.version', 'r')#, encoding='UTF-16')
 
 try:
     ROOT_ELEMENT = xml.etree.ElementTree.parse(CONFIG_FILE).getroot()
