@@ -162,7 +162,7 @@ def find_ode(kpilist, load, odlist ):
     return  matchlist, perc, vol
 
 def find_ode_noweight(kpilist, load, odlist):
-    # weight from counts, used in similarity and histscoring
+    """weight from counts, used in similarity and histscoring"""
     matchlist = pd.DataFrame()
     vol = 0
     if load.corridor in odlist:
