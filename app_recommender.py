@@ -78,6 +78,7 @@ def multi_makeMatrix(x,y,z=[]):
                 kpiMatrix.append(carrier_ode_loads_kpi_std(i,j,loads))#,np.mean(np.asarray(std1)),np.std(np.asarray(std1))))
     return  kpiMatrix, odlist
 
+
 def makeMatrix(x,y,z):  
     """x is the hist load list, y is the unique ode list; x and y are pd.df structure
     Args:
@@ -137,6 +138,7 @@ def get_odelist_new(loadlist):
     odelist_df.columns = ['origin', 'destination', 'corridor','equipment']
     return odelist_df
 
+
 def find_ode(kpilist, load, odlist ):
     matchlist=pd.DataFrame()
     perc=[]
@@ -165,6 +167,7 @@ def find_ode(kpilist, load, odlist ):
     vol = len(matchlist)
     return  matchlist, perc, vol
 
+
 def find_ode_noweight(kpilist, load, odlist):
     """weight from counts, used in similarity and histscoring"""
     matchlist = pd.DataFrame()
@@ -180,6 +183,7 @@ def find_ode_noweight(kpilist, load, odlist):
             if x.ode.origin == load.origin or x.ode.destination == load.destination:
                 matchlist = matchlist.append(x.loads)
     return matchlist, vol
+
 
 def similarity(loadlist, newload, weight):
     carrier_scores = []
@@ -210,6 +214,7 @@ def similarity(loadlist, newload, weight):
     score_df['estimated_margin%'] = score_df['estimated_margin'] / newload.customer_rate*100
     return score_df
 
+
 def hist_scoring(carrier_scores_df, carrierID, loadID):
     k = 0.3
     # we can choose different condition: maybe top 5, top 10%, sim> 0.8 etc.
@@ -229,6 +234,7 @@ def hist_scoring(carrier_scores_df, carrierID, loadID):
 
     return score_df        
 
+
 def check(carrier_load,newloads,carrier):
     if carrier_load['flag']==1:
         loadList=carrier_load['histload']
@@ -242,6 +248,7 @@ def check(carrier_load,newloads,carrier):
         #corridor info is saved in the database now
 
     return (carrier_load_score)            
+
 
 def general_recommender(carrier,newloads):
     ##for new carriers, which has no hist data
@@ -289,6 +296,7 @@ def general_recommender(carrier,newloads):
     #     carrier_load_score.append(score)
     return (carrier_load_score)
   
+
 def indiv_recommender(carrier,newloads,loadList):
     """once there is any historical information for given carrier, use historical info to calculate the scores(hist preference)"""
 
@@ -335,9 +343,11 @@ def score_deadhead(DH,radius ):
     score_check=[min(max(0,a),100) for a in score]
     return  score_check
 
+
 def pu_Gap(pu_appt,EmptyDate,traveltime):
     time_gap=pu_appt-EmptyDate
     return time_gap.days * 24-traveltime + time_gap.seconds / 3600
+
 
 def dynamic_input(newloads_df,carrier):
     ##This part is for new api input
@@ -381,6 +391,7 @@ def dynamic_input(newloads_df,carrier):
     newloads_df['totalDH'] = newloads_df['originDH'] + newloads_df['destDH']
     return newloads_df      
 
+
 def reasoning(results_df):
     reasons=[]
     reason_label=['close to origin','short total deadhead','good historical performance on similar loads','estimated margin', 'close to pickup time','desired OD']
@@ -390,21 +401,12 @@ def reasoning(results_df):
         reasons.append ( reason_label[scores.index(max(scores))])
     return reasons
 
+
 def api_json_output(results_df):
     results_df['Score'] = results_df['Score'].apply(np.int)
     #api_resultes_df = results_df[['loadID', 'Reason', 'Score']]
     loads=[]
 
-##    results_df.to_csv(
-##        'carrier' + str(carrierID) + '_load_recommender' + datetime.datetime.now().strftime(
-##            "%Y%m%d-%H%M%S") + '.csv',
-##        index=False,
-##        columns=['carrierID', 'loadID', 'loaddate', 'origin', 'destination', 'originDH', 'destDH',
-##                 'totalDH', 'margin_perc', 'estimated_margin', 'corrdor_margin_perc', 'estimated_margin%',
-##                 'puGap', 'ODH_Score', 'totalDH_Score', 'puGap_Score',
-##                 'margin_Score', 'hist_perf', 'Score', 'Reason'])
-##    for i in api_resultes_df.index:
-##        load=api_resultes_df.loc[i]
     for i in results_df.index:
         load = results_df.loc[i]
         _loadid = load["loadID"].item()
@@ -446,8 +448,6 @@ def filter_newloads(carrier,newloads_df,carrier_load):
             newloads_df = newloads_df.drop_duplicates()
 
     return newloads_df
-
-
 
 
 def recommender( carrier_load,trucks_df):
