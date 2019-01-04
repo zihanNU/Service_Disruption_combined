@@ -89,11 +89,73 @@ def test_score_deadhead():
 def test_class_carrier_ode_loads_kpi_std():
 
     carrierid = 5213
+    lane_df = create_ode_df()
+    ode = next(lane_df.itertuples())
+    expected_origin = ode.origin
 
+    loads_df = create_loads_df()
+    expected_load1 = loads_df.values[0][0]
+    expected_load2 = loads_df.values[1][0]
+
+    actual_class = app_recommender.carrier_ode_loads_kpi_std(carrier=carrierid, ode=ode, loads=loads_df)
+
+    assert actual_class.carrier == carrierid
+    assert actual_class.ode.origin == expected_origin
+    assert actual_class.loads.values[0][0] == expected_load1
+    assert actual_class.loads.values[1][0] == expected_load2
+    
+
+def test_makeMatrix():
+    """makeMatrix(x,y,z) are the same inputs to carrier_ode_loads_kpi_std class
+    
+    Returns: two lists, list1 has the appended carrier_ode_loads_kpi_std classes
+    list2 has the 'corridor' from the passed in ode?
+    """
+    
+    carrierid = 5213
+    lane_df = create_ode_df()
+    #ode = next(lane_df.itertuples())
+    
+    loads_df = create_loads_df()
+    loads_count = len(loads_df.index)
+    
+    kpiMatrix, odlist = app_recommender.makeMatrix(loads_df, lane_df, carrierid)
+
+    #with the default corridor, we expect to get all the loads back.
+    assert loads_count == len(kpiMatrix[0].loads.index)
+
+    #now if our loads have a different corridor...we get no loads back.
+    loads_df = create_loads_df('sammich-hungry')
+    kpiMatrix, odlist = app_recommender.makeMatrix(loads_df, lane_df, carrierid)
+
+    #...we should get no loads returned
+    assert 0 == len(kpiMatrix[0].loads.index)
+
+def create_loads_df(corridor='Louisville KY Region-Orlando Region'):
+
+    loads_df = tpd.DataFrame(columns=['loadid', 'loaddate', 'carrierID', 'hot', 'customer_rate',
+       'carrier_cost', 'margin_perc', 'miles', 'rpm', 'kpiScore', 'originDH',
+       'pu_GAP', 'originCluster', 'destinationCluster', 'corridor',
+       'equipment', 'origin_count', 'dest_count', 'industryID', 'industry',
+       'originLat', 'originLon', 'destinationLat', 'destinationLon',
+       'createdate', 'updatedate', 'origin_max', 'dest_max'], index=list(range(2)))
+
+    #loads_df.loc[0] = { "loadid": 1234 }
+    #loads_df.loc[1] = { "loadid": 9876 }
+
+    loads_df.at[0,"loadid"] = 1234
+    loads_df.at[1,"loadid"] = 9876
+
+    loads_df["corridor"] = corridor
+    
+    return loads_df
+
+
+def create_ode_df(corridor='Louisville KY Region-Orlando Region'):
     lane_df = tpd.DataFrame(columns=['origin', 'destination', 'corridor', 'equipment', 'origin_count',
         'origin_max', 'dest_count', 'dest_max'])
     lane_df.loc[0] = {
-        "corridor": 'Louisville KY Region-Orlando Region',
+        "corridor": corridor,
         "dest_count": 41,
         "dest_max": 41,
         "destination": 'Orlando Region',
@@ -102,17 +164,4 @@ def test_class_carrier_ode_loads_kpi_std():
         "origin_count": 10,
         "origin_max": 33
     }
-    ode = next(lane_df.itertuples())
-
-    loads_df = tpd.DataFrame(columns=['loadid'])
-
-    loads_df.loc[0] = { "loadid": 1234 }
-    loads_df.loc[1] = { "loadid": 9876 }
-    
-    actual_class = app_recommender.carrier_ode_loads_kpi_std(carrier=carrierid, ode=ode, loads=loads_df)
-
-    assert actual_class.carrier == carrierid
-    assert actual_class.ode.origin == 'Louisville KY Region'
-    assert actual_class.loads.values[0][0] == 1234
-    assert actual_class.loads.values[1][0] == 9876
-    
+    return lane_df

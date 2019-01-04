@@ -56,7 +56,7 @@ class carrier_ode_loads_kpi_std:   # ode here is a pd.df with 4 features, o, d, 
 
 def multi_makeMatrix(x,y,z=[]):  
     """x is the hist load list, y is the unique ode list; x and y are pd.df structure
-    this function is defined for multiple carriers. if we have only 1, no need to set Z as a set"""
+    this UNUSED function is defined for MULTIPLE carriers. if we have only 1, no need to set Z as a set"""
     kpiMatrix = []
     odlist=[]
     for i in z:
@@ -78,8 +78,18 @@ def multi_makeMatrix(x,y,z=[]):
                 kpiMatrix.append(carrier_ode_loads_kpi_std(i,j,loads))#,np.mean(np.asarray(std1)),np.std(np.asarray(std1))))
     return  kpiMatrix, odlist
 
-
-def makeMatrix(x,y,z):  #x is the hist load list, y is the unique ode list; x and y are pd.df structure
+def makeMatrix(x,y,z):  
+    """x is the hist load list, y is the unique ode list; x and y are pd.df structure
+    Args:
+        x: the hist load list (pandas dataframe)
+        y: the unique ode list (pandas dataframe)
+        z: carrierID
+    Notes:
+        The for each element in the ode list, we seek loads and append to the first returned
+        list the carrier_ode_loads_kpi_std class 
+    Returns:
+        two lists
+    """
     kpiMatrix = []
     odlist=[]
     # for j in y.itertuples():
