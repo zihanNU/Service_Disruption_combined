@@ -85,3 +85,34 @@ def test_score_deadhead():
     assert 93 == round(result[2])
     assert 74 == round(result[3])
 
+
+def test_class_carrier_ode_loads_kpi_std():
+
+    carrierid = 5213
+
+    lane_df = tpd.DataFrame(columns=['origin', 'destination', 'corridor', 'equipment', 'origin_count',
+        'origin_max', 'dest_count', 'dest_max'])
+    lane_df.loc[0] = {
+        "corridor": 'Louisville KY Region-Orlando Region',
+        "dest_count": 41,
+        "dest_max": 41,
+        "destination": 'Orlando Region',
+        "equipment": 'other',
+        "origin": 'Louisville KY Region',
+        "origin_count": 10,
+        "origin_max": 33
+    }
+    ode = next(lane_df.itertuples())
+
+    loads_df = tpd.DataFrame(columns=['loadid'])
+
+    loads_df.loc[0] = { "loadid": 1234 }
+    loads_df.loc[1] = { "loadid": 9876 }
+    
+    actual_class = app_recommender.carrier_ode_loads_kpi_std(carrier=carrierid, ode=ode, loads=loads_df)
+
+    assert actual_class.carrier == carrierid
+    assert actual_class.ode.origin == 'Louisville KY Region'
+    assert actual_class.loads.values[0][0] == 1234
+    assert actual_class.loads.values[1][0] == 9876
+    

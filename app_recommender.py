@@ -45,12 +45,6 @@ if not os.path.exists(CONFIG.carrierDataPath):
 #setup QUERY engine
 QUERY = engines.QueryEngine(CONFIG.researchScienceConnString, CONFIG.bazookaAnalyticsConnString, CONFIG.bazookaReplConnString)
 
-class originDestinationEquipment:
-    def  __init__(self,origin,destination,equipment):
-        self.origin=origin
-        self.destination=destination
-        self.equipment=equipment
-
 class carrier_ode_loads_kpi_std:   # ode here is a pd.df with 4 features, o, d, corridor and equip.
     def  __init__(self,carrier,ode,loads):#,kpi,std):
         self.carrier=carrier
@@ -81,7 +75,7 @@ def multi_makeMatrix(x,y,z=[]):
             # no need to loop x for i times, as x is ordered by carrierid; needs to find the blocks for carrier[i]
             if (len(selectedloads)>0):
                 odlist.append(j.corridor)
-                kpiMatrix.append(carrier_ode_loads_kpi_std(i,j,loads,np.mean(np.asarray(std1)),np.std(np.asarray(std1))))
+                kpiMatrix.append(carrier_ode_loads_kpi_std(i,j,loads))#,np.mean(np.asarray(std1)),np.std(np.asarray(std1))))
     return  kpiMatrix, odlist
 
 
