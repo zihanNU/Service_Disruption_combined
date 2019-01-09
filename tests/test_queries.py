@@ -145,13 +145,13 @@ def assert_proper_connection(mockConnect, expectedConnectionString):
     assert mockConnect.call_count == 1
     assert mockConnect.call_args[0][0] == expectedConnectionString
 
+
 def get_queryengine(researchSciString = _researchScienceConnectionString, 
                             bazAnalyticsString = _bazAnalyticsConnectionString, 
                             bazookaReplConnStr = _bazookaReplConnStr):
     """Helper method to instantiate the query engine"""
     return engines.QueryEngine(researchSciString, bazAnalyticsString, bazookaReplConnStr)
     
-
 
 class MockPyodbcConnection:
 

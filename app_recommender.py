@@ -140,6 +140,19 @@ def get_odelist_new(loadlist):
 
 
 def find_ode(kpilist, load, odlist ):
+    """find_ode method
+
+    Args:
+        kpilist: the first result of the makeMatrix call
+        load: this is a single newload from the QUERY.get_newload resultset
+        odlist: the second result of the makeMatrix call
+
+    Returns:
+        matchlist: a df of matching loads
+        perc: a percentage or confidence in the match? 
+        vol: the count of matching loads
+
+    """
     matchlist=pd.DataFrame()
     perc=[]
     if load.corridor in odlist:
@@ -451,6 +464,13 @@ def filter_newloads(carrier,newloads_df,carrier_load):
 
 
 def recommender( carrier_load,trucks_df):
+    """main recommendation function
+
+    Args:
+    carrier_load: Pandas DF with historical loads for the carrier.
+    trucks_df: Pandas DF with truck(s) (orig,dest,ready date, etc.) sent to search()
+    """
+
     originDH_default = 250  # get radius
     destDH_default = 300
     gap_default=48
@@ -459,9 +479,8 @@ def recommender( carrier_load,trucks_df):
     #corridor_info = pd.read_csv("corridor_margin.csv")  # should be saved somewhere
 
     ##initialization of the final results
-    #results_sort_df = pd.DataFrame(columns=['loadID', 'Reason', 'Score'])
     result_json = {'Loads': [], "ver": CONFIG.versionNumber}
-    carrier = trucks_df.iloc[0]
+    carrier = trucks_df.iloc[0] #currently only support 1 truck
     t=TicToc()
     t.tic()
     newloads_df = QUERY.get_newload(carrier.originLat,carrier.originLon,carrier.cargolimit)
